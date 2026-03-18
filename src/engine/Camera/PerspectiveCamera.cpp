@@ -43,6 +43,11 @@ void PerspectiveCamera::Update(float deltaTime)
   Move(deltaTime);
 }
 
+void PerspectiveCamera::SetAspect(float newAspect)
+{
+  aspect = (newAspect > 0.0f) ? newAspect : aspect;
+}
+
 void PerspectiveCamera::LookAt(const glm::vec3& target)
 {
   front = glm::normalize(target - position);

@@ -27,10 +27,6 @@ struct VolumeUniforms {
   float threshold;
   int maxSteps;
   int textureCount;
-  int voxelKind;
-  int renderMode;
-  int matrixRows;
-  int matrixCols;
 };
 
 uniform CameraUniforms camera;
@@ -68,35 +64,9 @@ mat3 SampleMatrixVoxel(vec3 textureCoord)
 
 float SampleScalarValue(vec3 textureCoord)
 {
-    if (volume.voxelKind == 4)
+    if (volume.textureCount >= 3)
     {
         mat3 tensor = SampleMatrixVoxel(textureCoord);
-
-        if (volume.renderMode == 1)
-        {
-            return tensor[0][0] + tensor[1][1] + tensor[2][2];
-        }
-        if (volume.renderMode == 2)
-        {
-            return determinant(tensor);
-        }
-        if (volume.renderMode == 3)
-        {
-            return sqrt(dot(tensor[0], tensor[0]) + dot(tensor[1], tensor[1]) + dot(tensor[2], tensor[2]));
-        }
-        if (volume.renderMode == 4)
-        {
-            return tensor[0][0];
-        }
-        if (volume.renderMode == 5)
-        {
-            return tensor[1][1];
-        }
-        if (volume.renderMode == 6)
-        {
-            return tensor[2][2];
-        }
-
         return tensor[0][0] + tensor[1][1] + tensor[2][2];
     }
 

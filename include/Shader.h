@@ -1,11 +1,15 @@
 #pragma once
 
+#include <map>
 #include <string>
 #include <optional>
 #include <unordered_map>
+#include <variant>
 
 #include <glad/glad.h>
 #include <glm/glm.hpp>
+
+#include "UniformProvider.h"
 
 struct UniformInfo
 {
@@ -15,7 +19,7 @@ struct UniformInfo
   GLint location;
 };
 
-class Shader
+class Shader : public UniformProvider
 {
 public:
   unsigned int ID;
@@ -29,6 +33,7 @@ public:
 
   Shader(const Shader&) = delete;
   Shader& operator=(const Shader&) = delete;
+
 
   void Use() const;
 
@@ -44,7 +49,32 @@ public:
   bool HasUniform(const std::string& name) const;
   const std::unordered_map<std::string, UniformInfo>& GetUniformInfos() const;
 
+  void Apply(Shader& shader) const override;
+
+
+  // Uniform storage
+  using UniformValue = std::variant<bool, int, float, glm::vec3, glm::mat4>;
+
+  class UniformSlotProxy
+  {
+  public:
+    UniformSlotProxy(Shader& shader, std::string uniformName);
+
+    UniformSlotProxy& operator=(bool value);
+    UniformSlotProxy& operator=(int value);
+    UniformSlotProxy& operator=(float value);
+    UniformSlotProxy& operator=(const glm::vec3& value);
+    UniformSlotProxy& operator=(const glm::mat4& value);
+
+  private:
+    Shader& shader;
+    std::string uniformName;
+  };
+  UniformSlotProxy operator[](const std::string& name);
+
 private:
+  void SetStoredUniform(const std::string& name, const UniformValue& value);
+
   void CacheActiveUniforms();
   GLint GetUniformLocationCached(const std::string& name) const;
   bool IsUniformTypeCompatible(GLenum actualType, GLenum requestedType) const;
@@ -58,4 +88,6 @@ private:
 
   mutable std::unordered_map<std::string, GLint> uniformLocationCache;
   std::unordered_map<std::string, UniformInfo> uniformsByName;
+
+  std::map<std::string, UniformValue> storedUniforms;
 };

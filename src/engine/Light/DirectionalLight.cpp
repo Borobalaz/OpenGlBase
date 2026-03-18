@@ -11,6 +11,11 @@ void DirectionalLight::Apply(Shader& shader) const
     return;
   }
 
+  if (!shader.HasUniform("lightCount") || !shader.HasUniform("lights[0].type"))
+  {
+    return;
+  }
+
   const std::string prefix = "lights[" + std::to_string(uniformIndex) + "]";
 
   shader.SetInt(prefix + ".type", static_cast<int>(Light::Type::Directional));

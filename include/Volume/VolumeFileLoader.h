@@ -3,6 +3,7 @@
 #include <cstring>
 #include <filesystem>
 #include <fstream>
+#include <limits>
 #include <optional>
 #include <string>
 #include <variant>
@@ -18,10 +19,6 @@ struct VolumeFileHeader
   uint32_t width = 0;
   uint32_t height = 0;
   uint32_t depth = 0;
-  uint32_t voxelKind = 0;
-  uint32_t componentCount = 0;
-  uint32_t matrixRows = 0;
-  uint32_t matrixCols = 0;
   float spacingX = 1.0f;
   float spacingY = 1.0f;
   float spacingZ = 1.0f;
@@ -55,11 +52,39 @@ public:
     }
 
     if (std::memcmp(header.magic, "VXA1", 4) != 0 ||
-        header.version != 1 ||
-        header.voxelKind != static_cast<uint32_t>(VolumeVoxelTraits<TVoxel>::Kind))
+        header.version != 1)
     {
       return std::nullopt;
     }
+
+    if (header.width == 0 || header.height == 0 || header.depth == 0)
+    {
+      return std::nullopt;
+    }
+
+    const uint64_t voxelCount =
+      static_cast<uint64_t>(header.width) *
+      static_cast<uint64_t>(header.height) *
+      static_cast<uint64_t>(header.depth);
+    if (voxelCount > static_cast<uint64_t>(std::numeric_limits<size_t>::max() / sizeof(TVoxel)))
+    {
+      return std::nullopt;
+    }
+
+    input.seekg(0, std::ios::end);
+    const std::streamoff fileSize = input.tellg();
+    if (fileSize < 0)
+    {
+      return std::nullopt;
+    }
+
+    const uint64_t expectedSize = sizeof(VolumeFileHeader) + voxelCount * sizeof(TVoxel);
+    if (static_cast<uint64_t>(fileSize) != expectedSize)
+    {
+      return std::nullopt;
+    }
+
+    input.seekg(static_cast<std::streamoff>(sizeof(VolumeFileHeader)), std::ios::beg);
 
     VolumeData<TVoxel> volume(
       static_cast<int>(header.width),
@@ -98,10 +123,6 @@ public:
     header.width = static_cast<uint32_t>(metadata.dimensions.x);
     header.height = static_cast<uint32_t>(metadata.dimensions.y);
     header.depth = static_cast<uint32_t>(metadata.dimensions.z);
-    header.voxelKind = static_cast<uint32_t>(metadata.voxelKind);
-    header.componentCount = metadata.componentCount;
-    header.matrixRows = metadata.matrixRows;
-    header.matrixCols = metadata.matrixCols;
     header.spacingX = metadata.spacing.x;
     header.spacingY = metadata.spacing.y;
     header.spacingZ = metadata.spacing.z;

@@ -1,6 +1,7 @@
 #pragma once
 #include <unordered_map>
 #include <vector>
+#include <map>
 
 #include "Triangle.h"
 #include "QuadGeometry.h"
@@ -14,15 +15,14 @@
 #include "GameObject.h"
 #include "Material.h"
 #include "TextureCube.h"
-#include "VolumeObject.h"
-#include "VolumeRenderSettings.h"
+#include "Volume.h"
 #include <memory>
 
 class Shader;
 class Triangle;
 class Skybox;
 class TextureCube;
-class VolumeObject;
+class Volume;
 
 class Scene
 {
@@ -42,16 +42,22 @@ public:
   void ClearVolumes();
 
   Camera& GetCamera();
+  void SetCameraAspect(float aspect);
+  void SetMatrixTestUniform(float value);
+  float GetMatrixTestUniform() const;
 
 private:
   float clearColor[4];
 
   PerspectiveCamera camera;
   CompositeUniformProvider frameUniforms;
-  std::vector<std::shared_ptr<Light>> lights;
+
   std::shared_ptr<Skybox> skybox;
-  std::vector<std::shared_ptr<VolumeObject>> volumes;
-  
+
+  std::vector<std::shared_ptr<Light>> lights;
+  std::vector<std::shared_ptr<Volume>> volumes;
   std::vector<std::shared_ptr<GameObject>> gameObjects;
-  std::shared_ptr<Shader> basicShader;
+  std::map<std::string, std::shared_ptr<Shader>> shaders;
+
+  float matrixTestUniformValue;
 };

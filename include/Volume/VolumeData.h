@@ -1,67 +1,17 @@
 #pragma once
 
 #include <cstdint>
+#include <string>
 #include <stdexcept>
 #include <type_traits>
 #include <vector>
 
 #include <glm/glm.hpp>
 
-enum class VolumeVoxelKind : uint32_t
-{
-  UInt8 = 1,
-  UInt16 = 2,
-  Float32 = 3,
-  Mat3Float32 = 4
-};
-
-template <typename TVoxel>
-struct VolumeVoxelTraits;
-
-template <>
-struct VolumeVoxelTraits<uint8_t>
-{
-  static constexpr VolumeVoxelKind Kind = VolumeVoxelKind::UInt8;
-  static constexpr uint32_t ComponentCount = 1;
-  static constexpr uint32_t MatrixRows = 1;
-  static constexpr uint32_t MatrixCols = 1;
-};
-
-template <>
-struct VolumeVoxelTraits<uint16_t>
-{
-  static constexpr VolumeVoxelKind Kind = VolumeVoxelKind::UInt16;
-  static constexpr uint32_t ComponentCount = 1;
-  static constexpr uint32_t MatrixRows = 1;
-  static constexpr uint32_t MatrixCols = 1;
-};
-
-template <>
-struct VolumeVoxelTraits<float>
-{
-  static constexpr VolumeVoxelKind Kind = VolumeVoxelKind::Float32;
-  static constexpr uint32_t ComponentCount = 1;
-  static constexpr uint32_t MatrixRows = 1;
-  static constexpr uint32_t MatrixCols = 1;
-};
-
-template <>
-struct VolumeVoxelTraits<glm::mat3>
-{
-  static constexpr VolumeVoxelKind Kind = VolumeVoxelKind::Mat3Float32;
-  static constexpr uint32_t ComponentCount = 9;
-  static constexpr uint32_t MatrixRows = 3;
-  static constexpr uint32_t MatrixCols = 3;
-};
-
 struct VolumeMetadata
 {
   glm::ivec3 dimensions{0, 0, 0};
   glm::vec3 spacing{1.0f, 1.0f, 1.0f};
-  VolumeVoxelKind voxelKind{VolumeVoxelKind::Float32};
-  uint32_t componentCount{1};
-  uint32_t matrixRows{1};
-  uint32_t matrixCols{1};
 };
 
 template <typename TVoxel>
@@ -71,11 +21,9 @@ public:
   VolumeData()
   {
     static_assert(std::is_trivially_copyable_v<TVoxel>, "Volume voxels must be trivially copyable.");
-    metadata.voxelKind = VolumeVoxelTraits<TVoxel>::Kind;
-    metadata.componentCount = VolumeVoxelTraits<TVoxel>::ComponentCount;
-    metadata.matrixRows = VolumeVoxelTraits<TVoxel>::MatrixRows;
-    metadata.matrixCols = VolumeVoxelTraits<TVoxel>::MatrixCols;
   }
+
+  explicit VolumeData(const std::string& filePath);
 
   VolumeData(int width, int height, int depth, const glm::vec3& spacing = glm::vec3(1.0f))
     : VolumeData()

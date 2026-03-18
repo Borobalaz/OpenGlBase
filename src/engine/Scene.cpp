@@ -5,6 +5,8 @@
 #include "ModelLoader.h"
 #include "Skybox.h"
 #include "Texture2D.h"
+#include "FloatVolume.h"
+#include "Mat3Volume.h"
 #include "VolumeFileLoader.h"
 
 #include <GLFW/glfw3.h>
@@ -12,35 +14,11 @@
 #include <cmath>
 #include <filesystem>
 
+#include <glm/gtc/constants.hpp>
+
 namespace
 {
   constexpr int kMaxLights = 16;
-
-  void EnsureDemoVolumeFile(const std::string& filePath)
-  {
-    if (std::filesystem::exists(filePath))
-    {
-      return;
-    }
-
-    constexpr int size = 48;
-    VolumeData<float> volume(size, size, size);
-
-    for (int z = 0; z < size; ++z)
-    {
-      for (int y = 0; y < size; ++y)
-      {
-        for (int x = 0; x < size; ++x)
-        {
-          const glm::vec3 position = (glm::vec3(x, y, z) / glm::vec3(size - 1) - 0.5f) * 2.0f;
-          const float radius = glm::length(position);
-          volume.At(x, y, z) = glm::max(0.0f, 1.0f - radius);
-        }
-      }
-    }
-
-    VolumeFileLoader::Save(filePath, volume);
-  }
 }
 
 /**
@@ -49,35 +27,48 @@ namespace
  */
 Scene::Scene()
   : clearColor{0.8f, 0.3f, 0.3f, 1.0f},
-    camera(45.0f, 800.0f / 600.0f, 0.1f, 100.0f)
+    camera(45.0f, 800.0f / 600.0f, 0.1f, 100.0f),
+    matrixTestUniformValue(1.0f)
 {
 
-  // SHADERS
-  basicShader = std::make_shared<Shader>(
+  // ------------- SHADERS -------------
+  const std::shared_ptr<Shader> basicShader = std::make_shared<Shader>(
     "shaders/vertex.glsl",
     "shaders/fragment.glsl"
   );
+  shaders["phong"] = basicShader;
 
-  // MATERIALS
+  const std::shared_ptr<Shader> scalarVolumeShader = std::make_shared<Shader>(
+    "shaders/volume_vertex.glsl",
+    "shaders/volume_fragment.glsl"
+  );
+
+  const std::shared_ptr<Shader> matrixVolumeShader = std::make_shared<Shader>(
+    "shaders/volume_vertex.glsl",
+    "shaders/volume_matrix_eigen_fragment.glsl"
+  );
+  shaders["volume_matrix"] = matrixVolumeShader;
+
+  // ------------- MATERIALS -------------
   std::shared_ptr<Material> triangleMaterial = std::make_shared<Material>(basicShader);
   triangleMaterial->SetTexture(std::make_shared<Texture2D>("assets/textures/balazslogo.png"));
 
-  // GAME OBJECTS
-  const std::shared_ptr<GameObject> importedModel =
-    ModelLoader::LoadGameObject("assets/models/assasin.fbx", basicShader);
-  if (importedModel)
-  {
-    importedModel->position = glm::vec3(0.0f, 0.0f, 0.0f);
-    importedModel->scale = glm::vec3(1.0f, 1.0f, 1.0f);
-    importedModel->rotation = glm::vec3(-glm::half_pi<float>(), 0.0f, -glm::half_pi<float>());
-    gameObjects.push_back(importedModel);
-  }
-  else
-  {
-    //std::cout << "Failed to load model\n";
-  }
+  // ------------- GAME OBJECTS -------------
+  //const std::shared_ptr<GameObject> importedModel =
+  //  ModelLoader::LoadGameObject("assets/models/assasin.fbx", basicShader);
+  //if (importedModel)
+  //{
+  //  importedModel->position = glm::vec3(0.0f, 0.0f, 0.0f);
+  //  importedModel->scale = glm::vec3(1.0f, 1.0f, 1.0f);
+  //  importedModel->rotation = glm::vec3(-glm::half_pi<float>(), 0.0f, -glm::half_pi<float>());
+  //  gameObjects.push_back(importedModel);
+  //}
+  //else
+  //{
+  //  //std::cout << "Failed to load model\n";
+  //}
 
-  // LIGHTS
+  // ------------- LIGHTS -------------
   lights.push_back(std::make_shared<PointLight>(PointLight(
     glm::vec3(0.0f, 0.0f, 2.0f),
     glm::vec3(1.0f, 0.08f, 0.08f),
@@ -95,72 +86,28 @@ Scene::Scene()
     glm::vec3(0.35f, 0.35f, 0.35f)
   )));
 
-  EnsureDemoVolumeFile("assets/volumes/demo_scalar.vxa");
-  VolumeRenderSettings demoSettings;
-  demoSettings.stepSize = 0.02f;
-  demoSettings.opacityScale = 0.18f;
-  demoSettings.intensityScale = 1.8f;
-  demoSettings.threshold = 0.15f;
-  demoSettings.maxSteps = 192;
-
-  const std::shared_ptr<VolumeObject> demoVolume =
-    VolumeObject::CreateFromFile("assets/volumes/demo_scalar.vxa", demoSettings);
-  if (demoVolume)
+  // ------------- VOLUMES -------------
+  std::shared_ptr<Volume> matrixDemoVolume;
+  try
   {
-    demoVolume->position = glm::vec3(1.75f, 0.0f, 0.0f);
-    demoVolume->scale = glm::vec3(1.4f, 1.4f, 1.4f);
-    volumes.push_back(demoVolume);
+    matrixDemoVolume = std::make_shared<Mat3Volume>(
+      VolumeData<glm::mat3>("assets/volumes/demo_matrix3x3.vxa"),
+      matrixVolumeShader);
   }
-}
-
-/**
- * @brief Set the skybox for the scene
- * 
- * @param cubemap The cube map for the skybox
- */
-void Scene::SetSkybox(std::shared_ptr<TextureCube> cubemap)
-{
-  if (cubemap != nullptr && cubemap->IsValid())
+  catch (const std::invalid_argument&)
   {
-    skybox = std::make_shared<Skybox>(std::move(cubemap));
-    return;
+    matrixDemoVolume = nullptr;
   }
 
-  skybox.reset();
-}
+  if (matrixDemoVolume)
+  {
+    matrixDemoVolume->position = glm::vec3(0.0f, 0.0f, 0.0f);
+    matrixDemoVolume->scale = glm::vec3(1.4f, 1.4f, 1.4f);
+    matrixDemoVolume->rotation = glm::vec3(0.0f, glm::quarter_pi<float>(), 0.0f);
+    volumes.push_back(matrixDemoVolume);
 
-/**
- * @brief Set the skybox for the scene
- * 
- * @param faces The faces of the skybox
- */
-void Scene::SetSkybox(const SkyboxFaces& faces)
-{
-  SetSkybox(std::make_shared<TextureCube>(faces));
-}
-
-/**
- * @brief Clear the skybox for the scene
- * 
- */
-void Scene::ClearSkybox()
-{
-  skybox.reset();
-}
-
-void Scene::ClearVolumes()
-{
-  volumes.clear();
-}
-
-/**
- * @brief Get a reference to the scene's camera
- * 
- * @return Camera& 
- */
-Camera& Scene::GetCamera()
-{
-  return camera;
+    (*matrixVolumeShader)["testUniform"] = matrixTestUniformValue;
+  }
 }
 
 /**
@@ -210,7 +157,7 @@ void Scene::Render()
 {
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-  Shader& shader = *basicShader;
+  Shader& shader = *shaders.at("phong");
   shader.Use();
 
   const int lightCount = static_cast<int>(std::min(lights.size(), static_cast<size_t>(kMaxLights)));
@@ -224,25 +171,92 @@ void Scene::Render()
     frameUniforms.AddProvider(*lights[static_cast<size_t>(i)]);
   }
 
+  // Draw game objects
   for (const auto& gameObject : gameObjects)
   {
     gameObject->Draw(frameUniforms);
   }
 
+  // Draw skybox
   if (skybox != nullptr)
   {
     skybox->Draw(camera);
   }
 
-  CompositeUniformProvider volumeFrameUniforms;
-  volumeFrameUniforms.AddProvider(camera);
+  // Draw volumes
   for (const auto& volume : volumes)
   {
     if (volume)
     {
-      volume->Draw(volumeFrameUniforms);
+      volume->Draw(frameUniforms);
     }
   }
+}
+
+/**
+ * @brief Set the skybox for the scene
+ * 
+ * @param cubemap The cube map for the skybox
+ */
+void Scene::SetSkybox(std::shared_ptr<TextureCube> cubemap)
+{
+  if (cubemap != nullptr && cubemap->IsValid())
+  {
+    skybox = std::make_shared<Skybox>(std::move(cubemap));
+    return;
+  }
+
+  skybox.reset();
+}
+
+/**
+ * @brief Set the skybox for the scene
+ * 
+ * @param faces The faces of the skybox
+ */
+void Scene::SetSkybox(const SkyboxFaces& faces)
+{
+  SetSkybox(std::make_shared<TextureCube>(faces));
+}
+
+/**
+ * @brief Clear the skybox for the scene
+ * 
+ */
+void Scene::ClearSkybox()
+{
+  skybox.reset();
+}
+
+/**
+ * @brief Get a reference to the scene's camera
+ * 
+ * @return Camera& 
+ */
+Camera& Scene::GetCamera()
+{
+  return camera;
+}
+
+void Scene::SetCameraAspect(float aspect)
+{
+  camera.SetAspect(aspect);
+}
+
+void Scene::SetMatrixTestUniform(float value)
+{
+  matrixTestUniformValue = value;
+
+  const auto it = shaders.find("volume_matrix");
+  if (it != shaders.end() && it->second)
+  {
+    (*(it->second))["testUniform"] = matrixTestUniformValue;
+  }
+}
+
+float Scene::GetMatrixTestUniform() const
+{
+  return matrixTestUniformValue;
 }
 
 /**

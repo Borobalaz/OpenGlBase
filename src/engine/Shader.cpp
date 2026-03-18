@@ -4,6 +4,8 @@
 #include <fstream>
 #include <sstream>
 #include <iostream>
+#include <type_traits>
+#include <utility>
 #include <vector>
 
 #include <glm/gtc/type_ptr.hpp>
@@ -21,6 +23,42 @@ namespace
 
     return name;
   }
+}
+
+Shader::UniformSlotProxy::UniformSlotProxy(Shader& shader, std::string uniformName)
+  : shader(shader),
+    uniformName(std::move(uniformName))
+{
+}
+
+Shader::UniformSlotProxy& Shader::UniformSlotProxy::operator=(bool value)
+{
+  shader.SetStoredUniform(uniformName, value);
+  return *this;
+}
+
+Shader::UniformSlotProxy& Shader::UniformSlotProxy::operator=(int value)
+{
+  shader.SetStoredUniform(uniformName, value);
+  return *this;
+}
+
+Shader::UniformSlotProxy& Shader::UniformSlotProxy::operator=(float value)
+{
+  shader.SetStoredUniform(uniformName, value);
+  return *this;
+}
+
+Shader::UniformSlotProxy& Shader::UniformSlotProxy::operator=(const glm::vec3& value)
+{
+  shader.SetStoredUniform(uniformName, value);
+  return *this;
+}
+
+Shader::UniformSlotProxy& Shader::UniformSlotProxy::operator=(const glm::mat4& value)
+{
+  shader.SetStoredUniform(uniformName, value);
+  return *this;
 }
 
 /**
@@ -82,6 +120,11 @@ Shader::~Shader()
   glDeleteProgram(ID);
 }
 
+Shader::UniformSlotProxy Shader::operator[](const std::string& name)
+{
+  return UniformSlotProxy(*this, name);
+}
+
 /**
  * @brief Set the shader as active
  * 
@@ -92,6 +135,44 @@ void Shader::Use() const
   GLenum error = glGetError();
   if (error != GL_NO_ERROR) {
     std::cout << "GL error after glUseProgram: " << error << std::endl;
+  }
+
+  for (const auto& [name, value] : storedUniforms)
+  {
+    if (!HasUniform("shader." + name))
+    {
+      std::cout << "Skipping uniform '" << "shader." + name
+                << "' because it is not part of shader "
+                << ID << std::endl;
+      continue;
+    }
+
+    std::visit(
+      [&](const auto& typedValue)
+      {
+        using ValueType = std::decay_t<decltype(typedValue)>;
+        if constexpr (std::is_same_v<ValueType, bool>)
+        {
+          SetBool("shader." + name, typedValue);
+        }
+        else if constexpr (std::is_same_v<ValueType, int>)
+        {
+          SetInt("shader." + name, typedValue);
+        }
+        else if constexpr (std::is_same_v<ValueType, float>)
+        {
+          SetFloat("shader." + name, typedValue);
+        }
+        else if constexpr (std::is_same_v<ValueType, glm::vec3>)
+        {
+          SetVec3("shader." + name, typedValue);
+        }
+        else if constexpr (std::is_same_v<ValueType, glm::mat4>)
+        {
+          SetMat4("shader." + name, typedValue);
+        }
+      },
+      value);
   }
 }
 
@@ -262,6 +343,52 @@ bool Shader::HasUniform(const std::string& name) const
 const std::unordered_map<std::string, UniformInfo>& Shader::GetUniformInfos() const
 {
   return uniformsByName;
+}
+
+void Shader::Apply(Shader& shader) const
+{
+  for (const auto& [name, value] : storedUniforms)
+  {
+    if (!shader.HasUniform(name))
+    {
+      std::cout << "Skipping uniform '" << name
+                << "' because it is not part of shader "
+                << shader.ID << std::endl;
+      continue;
+    }
+
+    std::visit(
+      [&](const auto& typedValue)
+      {
+        using ValueType = std::decay_t<decltype(typedValue)>;
+        if constexpr (std::is_same_v<ValueType, bool>)
+        {
+          shader.SetBool("shader." + name, typedValue);
+        }
+        else if constexpr (std::is_same_v<ValueType, int>)
+        {
+          shader.SetInt("shader." + name, typedValue);
+        }
+        else if constexpr (std::is_same_v<ValueType, float>)
+        {
+          shader.SetFloat("shader." + name, typedValue);
+        }
+        else if constexpr (std::is_same_v<ValueType, glm::vec3>)
+        {
+          shader.SetVec3("shader." + name, typedValue);
+        }
+        else if constexpr (std::is_same_v<ValueType, glm::mat4>)
+        {
+          shader.SetMat4("shader." + name, typedValue);
+        }
+      },
+      value);
+  }
+}
+
+void Shader::SetStoredUniform(const std::string& name, const UniformValue& value)
+{
+  storedUniforms[name] = value;
 }
 
 /* --------------------------------------------------------- */

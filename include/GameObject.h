@@ -8,7 +8,7 @@
 #include "IDrawable.h"
 #include "UniformProvider.h"
 
-class GameObject : public UniformProvider, IDrawable
+class GameObject : public UniformProvider, IDrawable, IInspectable
 {
 public:
   GameObject();
@@ -19,6 +19,7 @@ public:
   void Update(float deltaTime);
   void Draw(const UniformProvider& frameUniforms) const override;
   void Apply(Shader& shader) const override;
+  void CollectInspectableFields(std::vector<UiField>& out, const std::string& groupPrefix) override;
 
   glm::vec3 position;
   glm::vec3 rotation;
@@ -27,5 +28,6 @@ public:
 private:
   glm::mat4 BuildModelMatrix() const;
 
+  bool visible = true;
   std::vector<std::shared_ptr<Mesh>> meshes;
 };

@@ -1,6 +1,7 @@
 #version 330 core
 
 #define MAX_VOLUME_TEXTURES 4
+#define MAX_MARCH_STEPS 512
 
 in vec3 fragObjectPosition;
 in vec3 fragWorldPosition;
@@ -21,16 +22,15 @@ struct VolumeObjectUniforms {
 struct VolumeUniforms {
   vec3 dimensions;
   vec3 spacing;
-  float stepSize;
-  float opacityScale;
-  float intensityScale;
-  float threshold;
-  int maxSteps;
   int textureCount;
 };
 
 struct ShaderUniforms {
-  vec3 testUniform; // Example uniform for demonstration
+    float faThreshold;
+    float opacityScale;
+    float stepMultiplier;
+    vec3 tintColor;
+    float specularPower;
 };
 
 uniform CameraUniforms camera;
@@ -124,8 +124,8 @@ vec3 SymmetricEigenvalues(mat3 tensor)
     float p2 = (b00 * b00 + b11 * b11 + b22 * b22 + 2.0 * p1) / 6.0;
 
     mat3 B = tensor - mat3(q, 0.0, 0.0,
-                           0.0, q, 0.0,
-                           0.0, 0.0, q);
+                                                 0.0, q, 0.0,
+                                                 0.0, 0.0, q);
 
     float p = sqrt(max(p2, 1e-12));
     float r = determinant(B) / (2.0 * p * p * p);
@@ -141,56 +141,28 @@ vec3 SymmetricEigenvalues(mat3 tensor)
     return SortDescending(vec3(eig0, eig1, eig2));
 }
 
-vec3 DominantEigenvector(mat3 tensor, float eigenvalue)
+float ComputeFractionalAnisotropy(vec3 eigenvalues)
 {
-    mat3 shifted = tensor - mat3(
-        eigenvalue, 0.0, 0.0,
-        0.0, eigenvalue, 0.0,
-        0.0, 0.0, eigenvalue);
-
-    vec3 row0 = vec3(shifted[0][0], shifted[1][0], shifted[2][0]);
-    vec3 row1 = vec3(shifted[0][1], shifted[1][1], shifted[2][1]);
-    vec3 row2 = vec3(shifted[0][2], shifted[1][2], shifted[2][2]);
-
-    vec3 candidate0 = cross(row0, row1);
-    vec3 candidate1 = cross(row0, row2);
-    vec3 candidate2 = cross(row1, row2);
-
-    float candidate0Length = dot(candidate0, candidate0);
-    float candidate1Length = dot(candidate1, candidate1);
-    float candidate2Length = dot(candidate2, candidate2);
-
-    vec3 bestCandidate = candidate0;
-    float bestLength = candidate0Length;
-
-    if (candidate1Length > bestLength)
-    {
-        bestCandidate = candidate1;
-        bestLength = candidate1Length;
-    }
-
-    if (candidate2Length > bestLength)
-    {
-        bestCandidate = candidate2;
-        bestLength = candidate2Length;
-    }
-
-    if (bestLength <= 1e-12)
-    {
-        vec3 fallback = vec3(1.0, 0.0, 0.0);
-        fallback = SafeNormalize(tensor * fallback, fallback);
-        fallback = SafeNormalize(tensor * fallback, fallback);
-        fallback = SafeNormalize(tensor * fallback, fallback);
-        return fallback;
-    }
-
-    return SafeNormalize(bestCandidate, vec3(1.0, 0.0, 0.0));
+    float meanValue = (eigenvalues.x + eigenvalues.y + eigenvalues.z) / 3.0;
+    vec3 delta = eigenvalues - vec3(meanValue);
+    float numerator = sqrt(max(1.5 * dot(delta, delta), 0.0));
+    float denominator = sqrt(max(dot(eigenvalues, eigenvalues), 1e-12));
+    return clamp(numerator / denominator, 0.0, 1.0);
 }
 
-vec3 ComputeCurveNormal(vec3 tangent, vec3 viewDirection)
+vec3 PrincipalDirection(mat3 tensor)
+{
+    vec3 direction = vec3(1.0, 0.0, 0.0);
+    for (int i = 0; i < 8; ++i)
+    {
+        direction = SafeNormalize(tensor * direction, direction);
+    }
+    return direction;
+}
+
+vec3 ComputeTubeNormal(vec3 tangent, vec3 viewDirection)
 {
     vec3 normal = viewDirection - tangent * dot(viewDirection, tangent);
-
     if (dot(normal, normal) <= 1e-8)
     {
         vec3 fallbackAxis = abs(tangent.y) < 0.99 ? vec3(0.0, 1.0, 0.0) : vec3(1.0, 0.0, 0.0);
@@ -200,35 +172,32 @@ vec3 ComputeCurveNormal(vec3 tangent, vec3 viewDirection)
     return SafeNormalize(normal, vec3(0.0, 0.0, 1.0));
 }
 
-vec4 ShadeCurveHit(vec3 samplePosition, vec3 tangentObject, float eigenvalue)
+vec4 ShadeDtiHit(vec3 samplePosition, vec3 tangentObject, float fractionalAnisotropy)
 {
     vec3 worldPosition = vec3(volumeObject.modelMatrix * vec4(samplePosition, 1.0));
     vec3 tangentWorld = SafeNormalize(mat3(volumeObject.modelMatrix) * tangentObject, vec3(1.0, 0.0, 0.0));
     vec3 viewDirection = SafeNormalize(camera.viewPosition - worldPosition, vec3(0.0, 0.0, 1.0));
-    vec3 normal = ComputeCurveNormal(tangentWorld, viewDirection);
+    vec3 normal = ComputeTubeNormal(tangentWorld, viewDirection);
     vec3 lightDirection = SafeNormalize(vec3(0.35, 0.8, 0.45), vec3(0.0, 1.0, 0.0));
     vec3 halfVector = SafeNormalize(lightDirection + viewDirection, viewDirection);
 
-    float tangentViewDot = dot(tangentWorld, viewDirection);
-    float rim = sqrt(max(1.0 - tangentViewDot * tangentViewDot, 0.0));
     float diffuse = max(dot(normal, lightDirection), 0.0);
-    float specular = pow(max(dot(normal, halfVector), 0.0), 24.0);
-    float strength = clamp((eigenvalue - volume.threshold) * volume.intensityScale, 0.0, 1.0);
+    float specularPower = max(shader.specularPower, 1.0);
+    float specular = pow(max(dot(normal, halfVector), 0.0), specularPower);
 
-    vec3 baseColor = mix(vec3(0.14, 0.18, 0.24), abs(tangentWorld), 0.85);
-    vec3 color = baseColor * (0.2 + 0.5 * diffuse + 0.5 * rim);
-    color += vec3(0.35) * specular;
-    color *= 0.4 + 0.6 * strength;
+    // DTI convention: principal direction -> RGB orientation map.
+    vec3 baseColor = abs(tangentWorld);
+    vec3 shadedColor = baseColor * (0.25 + 0.75 * diffuse) + vec3(0.25) * specular;
+    shadedColor *= shader.tintColor;
 
-    float alpha = clamp((0.3 + 0.7 * rim) * (0.35 + strength * volume.opacityScale), 0.0, 1.0);
-    return vec4(clamp(color, 0.0, 1.0), alpha);
+    float opacityScale = clamp(shader.opacityScale, 0.1, 4.0);
+    float alpha = clamp(fractionalAnisotropy * opacityScale, 0.0, 1.0);
+
+    return vec4(clamp(shadedColor, 0.0, 1.0), alpha);
 }
 
 void main()
 {
-    //fragColor = vec4(shader.testUniform, 1.0); // Example usage of shader uniform
-    //return;
-    
     if (volume.textureCount < 3)
     {
         discard;
@@ -245,29 +214,33 @@ void main()
     }
 
     float currentDistance = max(tEnter, 0.0);
+    float maxDimension = max(max(volume.dimensions.x, volume.dimensions.y), volume.dimensions.z);
+    float stepBase = clamp(1.0 / max(maxDimension, 32.0), 0.001, 0.03);
+    float stepMultiplier = clamp(shader.stepMultiplier, 0.1, 4.0);
+    float stepSize = stepBase * stepMultiplier;
+    float faThreshold = clamp(shader.faThreshold, 0.0, 1.0);
 
-    for (int stepIndex = 0; stepIndex < volume.maxSteps; ++stepIndex)
+    for (int stepIndex = 0; stepIndex < MAX_MARCH_STEPS && currentDistance <= tExit; ++stepIndex)
     {
-        if (currentDistance > tExit)
-        {
-            break;
-        }
-
         vec3 samplePosition = rayOriginObject + rayDirectionObject * currentDistance;
         vec3 textureCoord = samplePosition + vec3(0.5);
 
-        mat3 tensor = SampleMatrixVoxel(textureCoord);
-        vec3 eigenvalues = SymmetricEigenvalues(tensor);
-        float dominantEigenvalue = eigenvalues.x;
+        if (all(greaterThanEqual(textureCoord, vec3(0.0))) &&
+                all(lessThanEqual(textureCoord, vec3(1.0))))
+    {
+            mat3 tensor = SampleMatrixVoxel(textureCoord);
+            vec3 eigenvalues = SymmetricEigenvalues(tensor);
+            float fa = ComputeFractionalAnisotropy(eigenvalues);
 
-        if (dominantEigenvalue > volume.threshold)
-        {
-            vec3 tangentObject = DominantEigenvector(tensor, dominantEigenvalue);
-            fragColor = ShadeCurveHit(samplePosition, tangentObject, dominantEigenvalue);
-            return;
-        }
+            if (fa > faThreshold)
+            {
+                vec3 tangentObject = PrincipalDirection(tensor);
+                fragColor = ShadeDtiHit(samplePosition, tangentObject, fa);
+                return;
+            }
+    }
 
-        currentDistance += max(volume.stepSize, 0.001);
+        currentDistance += stepSize;
     }
 
     discard;

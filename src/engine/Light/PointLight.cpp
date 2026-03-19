@@ -28,3 +28,31 @@ void PointLight::Apply(Shader& shader) const
   shader.SetFloat(prefix + ".linear", linear);
   shader.SetFloat(prefix + ".quadratic", quadratic);
 }
+
+void PointLight::CollectInspectableFields(std::vector<UiField>& out, const std::string& groupPrefix)
+{
+  const std::string group = groupPrefix.empty() ? "PointLight" : groupPrefix;
+
+  UiField positionField;
+  positionField.group = group;
+  positionField.label = "Position";
+  positionField.kind = UiFieldKind::Vec3;
+  positionField.speed = 0.01f;
+  positionField.getter = [this]() -> UiFieldValue
+  {
+    return position;
+  };
+  positionField.setter = [this](const UiFieldValue& value)
+  {
+    if (!std::holds_alternative<glm::vec3>(value))
+    {
+      return;
+    }
+
+    position = std::get<glm::vec3>(value);
+  };
+  out.push_back(std::move(positionField));
+
+  // Collect base Light fields
+  Light::CollectInspectableFields(out, group);
+}

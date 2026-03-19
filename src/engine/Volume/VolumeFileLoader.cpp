@@ -4,9 +4,11 @@
 #include <filesystem>
 #include <fstream>
 #include <iostream>
+#include <exception>
 
 #ifdef CONNECTOMICS_ENABLE_ITK_IO
 #include <itkGDCMImageIO.h>
+#include <itkGDCMImageIOFactory.h>
 #include <itkGDCMSeriesFileNames.h>
 #include <itkImage.h>
 #include <itkImageIOBase.h>
@@ -14,10 +16,39 @@
 #include <itkImageFileReader.h>
 #include <itkImageRegionConstIterator.h>
 #include <itkImageSeriesReader.h>
+#include <itkMetaImageIOFactory.h>
+#include <itkNiftiImageIOFactory.h>
+#include <itkNrrdImageIOFactory.h>
+#include <itkObjectFactoryBase.h>
 #endif
 
 namespace
 {
+  std::string g_lastVolumeLoaderError;
+
+  void SetVolumeLoaderError(const std::string& message)
+  {
+    g_lastVolumeLoaderError = message;
+    std::cerr << message << std::endl;
+  }
+
+#ifdef CONNECTOMICS_ENABLE_ITK_IO
+  void EnsureItkImageIoFactoriesRegistered()
+  {
+    static bool registered = false;
+    if (registered)
+    {
+      return;
+    }
+
+    itk::ObjectFactoryBase::RegisterFactory(itk::NiftiImageIOFactory::New());
+    itk::ObjectFactoryBase::RegisterFactory(itk::NrrdImageIOFactory::New());
+    itk::ObjectFactoryBase::RegisterFactory(itk::MetaImageIOFactory::New());
+    itk::ObjectFactoryBase::RegisterFactory(itk::GDCMImageIOFactory::New());
+    registered = true;
+  }
+#endif
+
   /**
    * @brief Tries to read the header from a volume file.
    * 
@@ -116,8 +147,22 @@ namespace
       reader->Update();
       return CopyItkImageToVolume<TOutputVoxel, TInputVoxel>(reader->GetOutput());
     }
+    catch (const itk::ExceptionObject& ex)
+    {
+      SetVolumeLoaderError(
+        std::string("ITK reader failed for '") + filePath + "': " + ex.GetDescription());
+      return std::nullopt;
+    }
+    catch (const std::exception& ex)
+    {
+      SetVolumeLoaderError(
+        std::string("Reader exception for '") + filePath + "': " + ex.what());
+      return std::nullopt;
+    }
     catch (...)
     {
+      SetVolumeLoaderError(
+        std::string("Unknown reader failure for '") + filePath + "'.");
       return std::nullopt;
     }
   }
@@ -132,6 +177,10 @@ namespace
   template <typename TOutputVoxel>
   std::optional<VolumeData<TOutputVoxel>> TryLoadImageFile(const std::string& filePath)
   {
+#ifdef CONNECTOMICS_ENABLE_ITK_IO
+    EnsureItkImageIoFactoriesRegistered();
+#endif
+
     using IOComponentType = itk::IOComponentEnum;
     using IOPixelType = itk::IOPixelEnum;
 
@@ -139,8 +188,9 @@ namespace
       itk::ImageIOFactory::CreateImageIO(filePath.c_str(), itk::CommonEnums::IOFileMode::ReadMode);
     if (!imageIo)
     {
+      SetVolumeLoaderError(
+        std::string("ITK has no ImageIO for '") + filePath + "'.");
       return std::nullopt;
-      std::cerr << "ITK does not have a suitable ImageIO for file '" << filePath << "'.\n";
     }
 
     try
@@ -148,26 +198,39 @@ namespace
       imageIo->SetFileName(filePath);
       imageIo->ReadImageInformation();
     }
+    catch (const itk::ExceptionObject& ex)
+    {
+      SetVolumeLoaderError(
+        std::string("ITK failed reading image info for '") + filePath + "': " + ex.GetDescription());
+      return std::nullopt;
+    }
+    catch (const std::exception& ex)
+    {
+      SetVolumeLoaderError(
+        std::string("Image info exception for '") + filePath + "': " + ex.what());
+      return std::nullopt;
+    }
     catch (...)
     {
+      SetVolumeLoaderError(
+        std::string("Unknown image info failure for '") + filePath + "'.");
       return std::nullopt;
-      std::cerr << "ITK failed to read image information from file '" << filePath << "'.\n";
     }
 
     const IOPixelType pixelType = imageIo->GetPixelType();
     if (pixelType != IOPixelType::SCALAR)
     {
+      SetVolumeLoaderError(
+        std::string("Unsupported pixel type for '") + filePath + "'. Only scalar volumes are supported.");
       return std::nullopt;
-      std::cerr << "ITK loaded image from file '" << filePath
-                << "' does not have scalar pixel type. Only scalar volumes are supported.\n";
     }
 
     const unsigned int dimension = imageIo->GetNumberOfDimensions();
     if (dimension != 3)
     {
+      SetVolumeLoaderError(
+        std::string("Unsupported dimension for '") + filePath + "'. Only 3D volumes are supported.");
       return std::nullopt;
-      std::cerr << "ITK loaded image from file '" << filePath
-                << "' does not have 3 dimensions. Only 3D volumes are supported.\n";
     }
 
     const IOComponentType componentType = imageIo->GetComponentType();
@@ -201,8 +264,8 @@ namespace
         break;
     }
 
-    std::cerr << "ITK loaded image from file '" << filePath
-              << "' has unsupported component type. Only scalar volumes with standard component types are supported.\n";
+    SetVolumeLoaderError(
+      std::string("Unsupported component type in '") + filePath + "'.");
     return std::nullopt;
   }
 
@@ -251,8 +314,22 @@ namespace
 
       return CopyItkImageToVolume<TVoxel, TVoxel>(reader->GetOutput());
     }
+    catch (const itk::ExceptionObject& ex)
+    {
+      SetVolumeLoaderError(
+        std::string("DICOM series read failed for '") + directoryPath + "': " + ex.GetDescription());
+      return std::nullopt;
+    }
+    catch (const std::exception& ex)
+    {
+      SetVolumeLoaderError(
+        std::string("DICOM series exception for '") + directoryPath + "': " + ex.what());
+      return std::nullopt;
+    }
     catch (...)
     {
+      SetVolumeLoaderError(
+        std::string("Unknown DICOM series failure for '") + directoryPath + "'.");
       return std::nullopt;
     }
   }
@@ -277,6 +354,8 @@ namespace
  */
 std::optional<LoadedVolumeVariant> VolumeFileLoader::Load(const std::string& filePath)
 {
+  g_lastVolumeLoaderError.clear();
+
   const std::optional<VolumeFileHeader> header = TryReadHeader(filePath);
   if (header.has_value())
   {
@@ -322,6 +401,11 @@ std::optional<LoadedVolumeVariant> VolumeFileLoader::Load(const std::string& fil
   return std::nullopt;
 }
 
+std::string VolumeFileLoader::GetLastError()
+{
+  return g_lastVolumeLoaderError;
+}
+
 /**
  * @brief Tries to load a medical image file (like NIfTI) or DICOM series using ITK.
  * 
@@ -336,7 +420,8 @@ std::optional<VolumeData<uint8_t>> VolumeFileLoader::TryLoadMedicalFormat<uint8_
 #ifdef CONNECTOMICS_ENABLE_ITK_IO
   return TryLoadMedicalVolumeWithItk<uint8_t>(filePath);
 #else
-  (void)filePath;
+  SetVolumeLoaderError(
+    std::string("Medical image loading is disabled at build time; cannot load '") + filePath + "'.");
   return std::nullopt;
 #endif
 }
@@ -355,7 +440,8 @@ std::optional<VolumeData<uint16_t>> VolumeFileLoader::TryLoadMedicalFormat<uint1
 #ifdef CONNECTOMICS_ENABLE_ITK_IO
   return TryLoadMedicalVolumeWithItk<uint16_t>(filePath);
 #else
-  (void)filePath;
+  SetVolumeLoaderError(
+    std::string("Medical image loading is disabled at build time; cannot load '") + filePath + "'.");
   return std::nullopt;
 #endif
 }
@@ -374,7 +460,8 @@ std::optional<VolumeData<float>> VolumeFileLoader::TryLoadMedicalFormat<float>(
 #ifdef CONNECTOMICS_ENABLE_ITK_IO
   return TryLoadMedicalVolumeWithItk<float>(filePath);
 #else
-  (void)filePath;
+  SetVolumeLoaderError(
+    std::string("Medical image loading is disabled at build time; cannot load '") + filePath + "'.");
   return std::nullopt;
 #endif
 }

@@ -34,6 +34,7 @@ class VolumeFileLoader
 {
 public:
   static std::optional<LoadedVolumeVariant> Load(const std::string& filePath);
+  static std::string GetLastError();
 
   template <typename TVoxel>
   static std::optional<VolumeData<TVoxel>> LoadTyped(const std::string& filePath)

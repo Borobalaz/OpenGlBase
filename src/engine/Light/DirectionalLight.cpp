@@ -28,3 +28,31 @@ void DirectionalLight::Apply(Shader& shader) const
   shader.SetFloat(prefix + ".linear", 0.0f);
   shader.SetFloat(prefix + ".quadratic", 0.0f);
 }
+
+void DirectionalLight::CollectInspectableFields(std::vector<UiField>& out, const std::string& groupPrefix)
+{
+  const std::string group = groupPrefix.empty() ? "DirectionalLight" : groupPrefix;
+
+  UiField directionField;
+  directionField.group = group;
+  directionField.label = "Direction";
+  directionField.kind = UiFieldKind::Vec3;
+  directionField.speed = 0.01f;
+  directionField.getter = [this]() -> UiFieldValue
+  {
+    return direction;
+  };
+  directionField.setter = [this](const UiFieldValue& value)
+  {
+    if (!std::holds_alternative<glm::vec3>(value))
+    {
+      return;
+    }
+
+    direction = std::get<glm::vec3>(value);
+  };
+  out.push_back(std::move(directionField));
+
+  // Collect base Light fields
+  Light::CollectInspectableFields(out, group);
+}

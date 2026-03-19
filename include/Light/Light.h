@@ -2,9 +2,10 @@
 
 #include <glm/glm.hpp>
 
+#include "Gui/Inspectable.h"
 #include "UniformProvider.h"
 
-class Light : public UniformProvider
+class Light : public UniformProvider, public IInspectable
 {
 public:
   enum class Type
@@ -21,6 +22,8 @@ public:
 
   void SetUniformIndex(int index);
   int GetUniformIndex() const;
+
+  void CollectInspectableFields(std::vector<UiField>& out, const std::string& groupPrefix) override;  
 
   glm::vec3 ambient;
   glm::vec3 diffuse;

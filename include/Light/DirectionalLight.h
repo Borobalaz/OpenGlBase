@@ -14,6 +14,7 @@ public:
                    const glm::vec3& specular);
 
   void Apply(Shader& shader) const override;
+  void CollectInspectableFields(std::vector<UiField>& out, const std::string& groupPrefix) override;
 
   glm::vec3 direction;
 };

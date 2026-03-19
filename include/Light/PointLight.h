@@ -17,6 +17,7 @@ public:
              float quadratic);
 
   void Apply(Shader& shader) const override;
+  void CollectInspectableFields(std::vector<UiField>& out, const std::string& groupPrefix) override;
 
   glm::vec3 position;
   float constant;

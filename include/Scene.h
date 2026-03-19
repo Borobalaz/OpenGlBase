@@ -16,6 +16,7 @@
 #include "Gui/Inspectable.h"
 #include "Material.h"
 #include "TextureCube.h"
+#include "UniformProvider.h"
 #include "Volume.h"
 #include <memory>
 
@@ -25,7 +26,7 @@ class Skybox;
 class TextureCube;
 class Volume;
 
-class Scene
+class Scene : public UniformProvider
 {
 public:
   Scene();
@@ -35,6 +36,7 @@ public:
   void Update(float deltaTime);
   void Render();
   void Destroy();
+  void Apply(Shader& shader) const override;
 
   void SetSkybox(std::shared_ptr<TextureCube> cubemap);
   void SetSkybox(const SkyboxFaces& faces);

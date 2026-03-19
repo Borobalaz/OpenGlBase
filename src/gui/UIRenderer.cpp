@@ -14,6 +14,7 @@
 #include "InspectionMovement.h"
 #include "VolumeFileLoader.h"
 #include "FloatVolume.h"
+#include "Mat3Volume.h"
 #include "UInt16Volume.h"
 #include "UInt8Volume.h"
 
@@ -168,12 +169,19 @@ std::string UIRenderer::TryLoadVolumeStatus(Scene& scene, const std::string& fil
   std::optional<LoadedVolumeVariant> loadedVolume = VolumeFileLoader::Load(filePath);
   if (!loadedVolume.has_value())
   {
+    const std::string detailedError = VolumeFileLoader::GetLastError();
+    if (!detailedError.empty())
+    {
+      return "Failed to load volume: " + filePath + "\nReason: " + detailedError;
+    }
+
     return "Failed to load volume: " + filePath;
   }
 
   std::shared_ptr<Shader> scalarShader = scene.GetActiveVolumeShader();
+  std::shared_ptr<Shader> matrixShader = scene.GetMatrixVolumeShader();
   Volume* runtimeVolume = nullptr;
-  bool loadedTypeIsScalar = false;
+  bool loadedTypeIsSupported = false;
 
   std::visit(
     [&](auto&& volumeData)
@@ -182,7 +190,7 @@ std::string UIRenderer::TryLoadVolumeStatus(Scene& scene, const std::string& fil
 
       if constexpr (std::is_same_v<VolumeDataType, VolumeData<float>>)
       {
-        loadedTypeIsScalar = true;
+        loadedTypeIsSupported = true;
         if (scalarShader)
         {
           runtimeVolume = new FloatVolume(volumeData, scalarShader);
@@ -190,7 +198,7 @@ std::string UIRenderer::TryLoadVolumeStatus(Scene& scene, const std::string& fil
       }
       else if constexpr (std::is_same_v<VolumeDataType, VolumeData<uint16_t>>)
       {
-        loadedTypeIsScalar = true;
+        loadedTypeIsSupported = true;
         if (scalarShader)
         {
           runtimeVolume = new UInt16Volume(volumeData, scalarShader);
@@ -198,10 +206,18 @@ std::string UIRenderer::TryLoadVolumeStatus(Scene& scene, const std::string& fil
       }
       else if constexpr (std::is_same_v<VolumeDataType, VolumeData<uint8_t>>)
       {
-        loadedTypeIsScalar = true;
+        loadedTypeIsSupported = true;
         if (scalarShader)
         {
           runtimeVolume = new UInt8Volume(volumeData, scalarShader);
+        }
+      }
+      else if constexpr (std::is_same_v<VolumeDataType, VolumeData<glm::mat3>>)
+      {
+        loadedTypeIsSupported = true;
+        if (matrixShader)
+        {
+          runtimeVolume = new Mat3Volume(volumeData, matrixShader);
         }
       }
     },
@@ -213,9 +229,9 @@ std::string UIRenderer::TryLoadVolumeStatus(Scene& scene, const std::string& fil
     return "Loaded volume: " + filePath;
   }
 
-  if (!loadedTypeIsScalar)
+  if (!loadedTypeIsSupported)
   {
-    return "Load failed: only scalar volumes are supported in the scene loader.";
+    return "Load failed: unsupported volume type for runtime scene loader.";
   }
 
   return "Failed to create runtime volume for: " + filePath;
@@ -268,6 +284,10 @@ void UIRenderer::RenderInspectableControls(Scene& scene)
 
     UiFieldValue value = field.getter();
 
+    // Create unique ImGui ID by combining group and label to avoid collisions
+    const std::string uniqueId = field.group + "/" + field.label;
+    ImGui::PushID(uniqueId.c_str());
+
     if (field.kind == UiFieldKind::Bool)
     {
       bool currentValue = std::holds_alternative<bool>(value) ? std::get<bool>(value) : false;
@@ -275,40 +295,32 @@ void UIRenderer::RenderInspectableControls(Scene& scene)
       {
         field.setter(currentValue);
       }
-      continue;
     }
-
-    if (field.kind == UiFieldKind::Int)
+    else if (field.kind == UiFieldKind::Int)
     {
       int currentValue = std::holds_alternative<int>(value) ? std::get<int>(value) : 0;
       if (ImGui::SliderInt(field.label.c_str(), &currentValue, field.minInt, field.maxInt))
       {
         field.setter(currentValue);
       }
-      continue;
     }
-
-    if (field.kind == UiFieldKind::Float)
+    else if (field.kind == UiFieldKind::Float)
     {
       float currentValue = std::holds_alternative<float>(value) ? std::get<float>(value) : 0.0f;
       if (ImGui::SliderFloat(field.label.c_str(), &currentValue, field.minFloat, field.maxFloat))
       {
         field.setter(currentValue);
       }
-      continue;
     }
-
-    if (field.kind == UiFieldKind::Vec3)
+    else if (field.kind == UiFieldKind::Vec3)
     {
       glm::vec3 currentValue = std::holds_alternative<glm::vec3>(value) ? std::get<glm::vec3>(value) : glm::vec3(0.0f);
       if (ImGui::DragFloat3(field.label.c_str(), &currentValue.x, field.speed))
       {
         field.setter(currentValue);
       }
-      continue;
     }
-
-    if (field.kind == UiFieldKind::Color3)
+    else if (field.kind == UiFieldKind::Color3)
     {
       glm::vec3 currentValue = std::holds_alternative<glm::vec3>(value) ? std::get<glm::vec3>(value) : glm::vec3(0.0f);
       if (ImGui::ColorEdit3(field.label.c_str(), &currentValue.x))
@@ -316,6 +328,8 @@ void UIRenderer::RenderInspectableControls(Scene& scene)
         field.setter(currentValue);
       }
     }
+
+    ImGui::PopID();
   }
 }
 
@@ -343,6 +357,8 @@ void UIRenderer::RenderRuntimeControls(Scene& scene, float deltaTime)
   static std::string volumeLoadStatus;
   HandleVolumeLoadAction(scene, volumeLoadStatus);
   RenderVolumeLoadStatus(volumeLoadStatus);
+  ImGui::Separator();
+  ImGui::Separator();
   RenderInspectableControls(scene);
   RenderFps(deltaTime);
   ImGui::End();
@@ -368,8 +384,8 @@ void UIRenderer::RenderScenePanel(Scene& scene,
 
   if (inspectionMovement != nullptr)
   {
-    const bool scenePanelHovered = ImGui::IsWindowHovered(ImGuiHoveredFlags_AllowWhenBlockedByActiveItem);
-    inspectionMovement->SetInputEnabled(scenePanelHovered);
+    const bool scenePanelFocused = ImGui::IsWindowFocused();
+    inspectionMovement->SetInputEnabled(scenePanelFocused);
   }
 
   const ImVec2 availableRegion = ImGui::GetContentRegionAvail();

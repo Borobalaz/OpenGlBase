@@ -28,6 +28,5 @@ public:
 private:
   glm::mat4 BuildModelMatrix() const;
 
-  bool visible = true;
   std::vector<std::shared_ptr<Mesh>> meshes;
 };

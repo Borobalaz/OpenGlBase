@@ -40,7 +40,7 @@ void Volume::Apply(Shader& shader) const
 
 void Volume::Draw(const UniformProvider& frameUniforms) const
 {
-  if (!IsValid())
+  if (!IsValid() || !visible)
   {
     return;
   }
@@ -150,4 +150,24 @@ void Volume::CollectInspectableFields(std::vector<UiField>& out, const std::stri
     scale = std::get<glm::vec3>(value);
   };
   out.push_back(std::move(scaleField));
+
+  UiField visibleField;
+  visibleField.group = group;
+  visibleField.label = "Visible";
+  visibleField.kind = UiFieldKind::Bool;
+  visibleField.getter = [this]() -> UiFieldValue
+  {
+    return visible;
+  };
+  visibleField.setter = [this](const UiFieldValue& value)
+  {
+    if (!std::holds_alternative<bool>(value))
+    {
+      return;
+    }
+
+    visible = std::get<bool>(value);
+  };
+  out.push_back(std::move(visibleField));
+
 }

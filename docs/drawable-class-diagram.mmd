@@ -1,0 +1,92 @@
+classDiagram
+    class IDrawable {
+        <<interface>>
+        -bool visible
+        +Draw(frameUniforms) void*
+        +SetVisible(isVisible) void
+    }
+
+    class UniformProvider {
+        <<abstract>>
+        +Apply(shader) void*
+        +SetUniformUiFloatRange(name, min, max) void
+    }
+
+    class IInspectable {
+        <<interface>>
+        +CollectInspectableFields(out, groupPrefix) void*
+    }
+
+    class GameObject {
+        -vector~shared_ptr~Mesh~~ meshes
+        +glm::vec3 position
+        +glm::vec3 rotation
+        +glm::vec3 scale
+        +AddMesh(mesh) void
+        +Update(deltaTime) void
+        +Draw(frameUniforms) void
+        +Apply(shader) void
+        +CollectInspectableFields(out, groupPrefix) void
+        -BuildModelMatrix() glm::mat4
+    }
+
+    class Volume {
+        <<abstract>>
+        +glm::vec3 position
+        +glm::vec3 rotation
+        +glm::vec3 scale
+        #glm::ivec3 dimensions
+        #glm::vec3 spacing
+        #shared_ptr~VolumeGeometry~ geometry
+        #shared_ptr~Shader~ shader
+        +Draw(frameUniforms) void
+        +Apply(shader) void
+        +IsValid() bool
+        +CollectInspectableFields(out, groupPrefix) void
+        #GetTextureSet() VolumeTextureSet*
+        #BuildModelMatrix() glm::mat4
+    }
+
+    class FloatVolume {
+        -VolumeTextureSet textureSet
+        +GetTextureSet() VolumeTextureSet
+    }
+
+    class UInt16Volume {
+        -VolumeTextureSet textureSet
+        +GetTextureSet() VolumeTextureSet
+    }
+
+    class UInt8Volume {
+        -VolumeTextureSet textureSet
+        +GetTextureSet() VolumeTextureSet
+    }
+
+    class Mat3Volume {
+        -VolumeTextureSet textureSet
+        +GetTextureSet() VolumeTextureSet
+    }
+
+    class Skybox {
+        -shared_ptr~TextureCube~ cubemap
+        -shared_ptr~CubeGeometry~ geometry
+        -shared_ptr~Shader~ shader
+        +Draw(camera) void
+        +IsValid() bool
+    }
+
+    IDrawable <|-- GameObject
+    UniformProvider <|-- GameObject
+    IInspectable <|-- GameObject
+
+    IDrawable <|-- Volume
+    UniformProvider <|-- Volume
+    IInspectable <|-- Volume
+
+    Volume <|-- FloatVolume
+    Volume <|-- UInt16Volume
+    Volume <|-- UInt8Volume
+    Volume <|-- Mat3Volume
+
+    note "Skybox has Draw(Camera)\nbut does NOT inherit IDrawable"
+    Skybox ..> "uses" IDrawable

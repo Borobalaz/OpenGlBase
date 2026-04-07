@@ -49,58 +49,18 @@ const char *DWITensorSynthesisStage::Name() const
  */
 void DWITensorSynthesisStage::Execute(MriPreprocessingContext &context) const
 {
-  if (!context.gradientMetadataValid)
-  {
-    throw std::runtime_error("DWI gradient metadata must be validated before tensor fitting.");
-  }
-
-  // Load the raw MRI data
-  const auto dwiSeries = VolumeFileLoader::LoadSeries(context.selectedDwiVolumePath);
-  if (!dwiSeries.has_value())
-  {
-    throw std::runtime_error(
-        "Failed to load DWI series from '" + context.selectedDwiVolumePath +
-        "'. loaderError='" + VolumeFileLoader::GetLastError() + "'.");
-  }
-
-  // comment
-  const int frameCount = dwiSeries->GetFrameCount();
-  if (frameCount <= 0)
-  {
-    throw std::runtime_error("DWI series contains zero frames.");
-  }
+  const auto dwiSeries = VolumeFileLoader::LoadSeries(context.selectedDwiVolumePath).value();
+  const int frameCount = dwiSeries.GetFrameCount();
   std::cout << "DWI series loaded with " << frameCount << " frames." << std::endl;
 
-  if (static_cast<size_t>(frameCount) != context.bValues.size() ||
-      static_cast<size_t>(frameCount) != context.gradientDirections.size())
-  {
-    std::ostringstream details;
-    details
-        << "DWI frame/gradient mismatch: frames=" << frameCount
-        << " bvals=" << context.bValues.size()
-        << " bvecs=" << context.gradientDirections.size()
-        << " path='" << context.selectedDwiVolumePath << "'.";
-    throw std::runtime_error(details.str());
-  }
-
-  const VolumeSeriesMetadata &metadata = dwiSeries->GetMetadata();
+  const VolumeSeriesMetadata &metadata = dwiSeries.GetMetadata();
   const int width = metadata.dimensions.x;
   const int height = metadata.dimensions.y;
   const int depth = metadata.dimensions.z;
 
-  if (width <= 0 || height <= 0 || depth <= 0)
-  {
-    throw std::runtime_error("DWI spatial dimensions are invalid; cannot synthesize DTI tensor channels.");
-  }
-
   const size_t spatialVoxelCount =
       static_cast<size_t>(width) * static_cast<size_t>(height) * static_cast<size_t>(depth);
-  const std::vector<float> &allSignals = dwiSeries->GetVoxels();
-
-  if (allSignals.size() != spatialVoxelCount * static_cast<size_t>(frameCount))
-  {
-    throw std::runtime_error("DWI series voxel count does not match metadata dimensions.");
-  }
+  const std::vector<float> &allSignals = dwiSeries.GetVoxels();
 
   // empty output channels
   VolumeData Dxx(width, height, depth, metadata.spacing);

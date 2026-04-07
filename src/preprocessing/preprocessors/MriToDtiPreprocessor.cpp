@@ -7,9 +7,12 @@
 MriToDtiPreprocessor::MriToDtiPreprocessor()
 {
   pipeline
+    .AddStage(CreateDwiInputValidationStage())
     .AddStage(CreateDwiGradientNormalizationStage())
-    .AddStage(CreateDwiTensorSynthesisStage());
-    //.AddStage(CreateDwiNormalizationStage());
+    .AddStage(CreateDwiTensorSynthesisStage())
+    .AddStage(CreateDwiPrincipalEigenvectorStage())
+    .AddStage(CreateDwiScalarSynthesisStage())
+    .AddStage(CreateDwiNormalizationStage());
 }
 
 MriPreprocessingResult MriToDtiPreprocessor::Process(const MriPreprocessingRequest& request) const

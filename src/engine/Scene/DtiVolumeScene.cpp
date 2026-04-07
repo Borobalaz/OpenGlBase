@@ -69,8 +69,8 @@ bool DtiVolumeScene::LoadDataset(
       );
     (*volumeShader)["shader.sliceZ"] = 0.5f;
     volumeShader->SetUniformUiFloatRange("shader.sliceZ", 0.0f, 1.0f, 0.001f);
-    (*volumeShader)["shader.density"] = 400.0f;
-    volumeShader->SetUniformUiFloatRange("shader.density", 0.0f, 2000.0f, 1.0f);
+    (*volumeShader)["shader.density"] = 1.0f;
+    volumeShader->SetUniformUiFloatRange("shader.density", 0.0f, 1.0f, 0.0001f);
     
     dtiVolume = std::make_shared<DTIVolume>(result.channels, volumeShader);
         

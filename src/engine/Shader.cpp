@@ -162,8 +162,6 @@ Shader::UniformSlotProxy Shader::operator[](const std::string& name)
   return UniformSlotProxy(*this, name);
 }
 
-
-
 /**
  * @brief Set the shader as active
  * 
@@ -390,7 +388,13 @@ void Shader::SetUniformUiIntRange(const std::string& name, int minValue, int max
   config.maxInt = maxValue;
 }
 
-
+/**
+ * @brief Get the UniformInfo for a uniform by name, if it exists. 
+ *        This is the name, type, size, and location of the uniform as reported by OpenGL.  
+ * 
+ * @param name 
+ * @return std::optional<UniformInfo> 
+ */
 std::optional<UniformInfo> Shader::GetUniformInfo(const std::string& name) const
 {
   const auto it = uniformsByName.find(name);
@@ -402,11 +406,24 @@ std::optional<UniformInfo> Shader::GetUniformInfo(const std::string& name) const
   return it->second;
 }
 
+/**
+ * @brief Check if the shader has a uniform with the given name
+ * 
+ * @param name 
+ * @return true 
+ * @return false 
+ */
 bool Shader::HasUniform(const std::string& name) const
 {
   return GetUniformInfo(name).has_value();
 }
 
+/**
+ * @brief Get all uniform infos, indexed by uniform name. 
+ *        This is the name, type, size, and location of each uniform as reported by OpenGL.
+ * 
+ * @return const std::unordered_map<std::string, UniformInfo>& 
+ */
 const std::unordered_map<std::string, UniformInfo>& Shader::GetUniformInfos() const
 {
   return uniformsByName;

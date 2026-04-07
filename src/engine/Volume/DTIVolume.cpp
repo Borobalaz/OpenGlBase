@@ -1,7 +1,10 @@
 #include "DTIVolume.h"
 
 #include <algorithm>
+#include <array>
 #include <cmath>
+#include <iostream>
+#include <string>
 #include <stdexcept>
 
 #include "Texture3D.h"
@@ -42,6 +45,53 @@ namespace
            NearlyEqual(metadata.spacing.y, reference.spacing.y) &&
            NearlyEqual(metadata.spacing.z, reference.spacing.z);
   }
+
+  std::vector<float> PackRgbaChannels(const VolumeData &r,
+                                      const VolumeData &g,
+                                      const VolumeData &b,
+                                      const VolumeData &a)
+  {
+    const std::vector<float> &rVoxels = r.GetVoxels();
+    const std::vector<float> &gVoxels = g.GetVoxels();
+    const std::vector<float> &bVoxels = b.GetVoxels();
+    const std::vector<float> &aVoxels = a.GetVoxels();
+
+    const size_t voxelCount = rVoxels.size();
+    std::vector<float> packed(voxelCount * 4U, 0.0f);
+
+    for (size_t i = 0; i < voxelCount; ++i)
+    {
+      const size_t base = i * 4U;
+      packed[base + 0U] = rVoxels[i];
+      packed[base + 1U] = gVoxels[i];
+      packed[base + 2U] = bVoxels[i];
+      packed[base + 3U] = aVoxels[i];
+    }
+
+    return packed;
+  }
+
+  std::vector<float> PackRgbChannels(const VolumeData &r,
+                                     const VolumeData &g,
+                                     const VolumeData &b)
+  {
+    const std::vector<float> &rVoxels = r.GetVoxels();
+    const std::vector<float> &gVoxels = g.GetVoxels();
+    const std::vector<float> &bVoxels = b.GetVoxels();
+
+    const size_t voxelCount = rVoxels.size();
+    std::vector<float> packed(voxelCount * 3U, 0.0f);
+
+    for (size_t i = 0; i < voxelCount; ++i)
+    {
+      const size_t base = i * 3U;
+      packed[base + 0U] = rVoxels[i];
+      packed[base + 1U] = gVoxels[i];
+      packed[base + 2U] = bVoxels[i];
+    }
+
+    return packed;
+  }
 }
 
 /**
@@ -59,86 +109,128 @@ DTIVolume::DTIVolume(DTIVolumeChannels channels,
 {
   // Hallod ez konkrétan majdnem 2 héting volt egy bug amit nem találtam meg és lófaszt sem mutatott a volume render.
   // Úgy töltöttem fel a textúrát, hogy channels.Dxx
-  // De a kontruktor ugye azt a pointer std::move-val kinullolta kb, és utána a this->channels-ben volt. 
+  // De a kontruktor ugye azt a pointer std::move-val kinullolta kb, és utána a this->channels-ben volt.
   // c:
   const DTIVolumeChannels &gpuChannels = this->channels;
 
+  const std::array<const VolumeData *, 16> metadataValidatedChannels = {
+      &gpuChannels.Dxx,
+      &gpuChannels.Dyy,
+      &gpuChannels.Dzz,
+      &gpuChannels.Dxy,
+      &gpuChannels.Dxz,
+      &gpuChannels.Dyz,
+      &gpuChannels.EVx,
+      &gpuChannels.EVy,
+      &gpuChannels.EVz,
+      &gpuChannels.FA,
+      &gpuChannels.MD,
+      &gpuChannels.AD,
+      &gpuChannels.RD,
+      &gpuChannels.L1,
+      &gpuChannels.L2,
+      &gpuChannels.L3};
+
   // Validate metadata consistency across channels
-  if (!HasCompatibleMetadata(gpuChannels.Dyy, gpuChannels.Dxx.GetMetadata()) ||
-      !HasCompatibleMetadata(gpuChannels.Dzz, gpuChannels.Dxx.GetMetadata()) ||
-      !HasCompatibleMetadata(gpuChannels.Dxy, gpuChannels.Dxx.GetMetadata()) ||
-      !HasCompatibleMetadata(gpuChannels.Dxz, gpuChannels.Dxx.GetMetadata()) ||
-      !HasCompatibleMetadata(gpuChannels.Dyz, gpuChannels.Dxx.GetMetadata()))
+  for (const VolumeData *channel : metadataValidatedChannels)
   {
-    throw std::invalid_argument("All DTI channels must have the same dimensions and spacing.");
+    if (!HasCompatibleMetadata(*channel, gpuChannels.Dxx.GetMetadata()))
+    {
+      throw std::invalid_argument("All DTI channels must have the same dimensions and spacing.");
+    }
   }
 
   // Validate finite voxel data
-  if (!HasFiniteVoxelData(gpuChannels.Dxx) ||
-      !HasFiniteVoxelData(gpuChannels.Dyy) ||
-      !HasFiniteVoxelData(gpuChannels.Dzz) ||
-      !HasFiniteVoxelData(gpuChannels.Dxy) ||
-      !HasFiniteVoxelData(gpuChannels.Dxz) ||
-      !HasFiniteVoxelData(gpuChannels.Dyz))
+  for (const VolumeData *channel : metadataValidatedChannels)
   {
-    throw std::invalid_argument("All DTI channels must have finite voxel values.");
+    if (!HasFiniteVoxelData(*channel))
+    {
+      throw std::invalid_argument("All DTI channels must have finite voxel values.");
+    }
   }
 
-  // Create textures 
+  const VolumeMetadata &metadata = gpuChannels.Dxx.GetMetadata();
+  const int width = metadata.dimensions.x;
+  const int height = metadata.dimensions.y;
+  const int depth = metadata.dimensions.z;
+
+  // Texture 0 (RGB): (Dxx, Dyy, Dzz)
+  const std::vector<float> tensorDiagRgb = PackRgbChannels(
+      gpuChannels.Dxx,
+      gpuChannels.Dyy,
+      gpuChannels.Dzz);
   textureSet.AddTexture(std::make_shared<Texture3D>(
-    gpuChannels.Dxx.GetMetadata().dimensions.x,
-    gpuChannels.Dxx.GetMetadata().dimensions.y,
-    gpuChannels.Dxx.GetMetadata().dimensions.z,
-    GL_R32F,
-    GL_RED,
-    GL_FLOAT,
-    gpuChannels.Dxx.GetVoxels().data(),
-    true));
+      width,
+      height,
+      depth,
+      GL_RGB32F,
+      GL_RGB,
+      GL_FLOAT,
+      tensorDiagRgb.data(),
+      true));
+
+  // Texture 1 (RGB): (Dxy, Dxz, Dyz)
+  const std::vector<float> tensorOffDiagRgb = PackRgbChannels(
+      gpuChannels.Dxy,
+      gpuChannels.Dxz,
+      gpuChannels.Dyz);
   textureSet.AddTexture(std::make_shared<Texture3D>(
-    gpuChannels.Dyy.GetMetadata().dimensions.x,
-    gpuChannels.Dyy.GetMetadata().dimensions.y,
-    gpuChannels.Dyy.GetMetadata().dimensions.z,
-    GL_R32F,
-    GL_RED,
-    GL_FLOAT,
-    gpuChannels.Dyy.GetVoxels().data(),
-    true));
+      width,
+      height,
+      depth,
+      GL_RGB32F,
+      GL_RGB,
+      GL_FLOAT,
+      tensorOffDiagRgb.data(),
+      true));
+
+  // Texture 2 (RGB): (EVx, EVy, EVz)
+  const std::vector<float> principalEigenvectorRgb = PackRgbChannels(
+      gpuChannels.EVx,
+      gpuChannels.EVy,
+      gpuChannels.EVz);
   textureSet.AddTexture(std::make_shared<Texture3D>(
-    gpuChannels.Dzz.GetMetadata().dimensions.x,
-    gpuChannels.Dzz.GetMetadata().dimensions.y,
-    gpuChannels.Dzz.GetMetadata().dimensions.z,
-    GL_R32F,
-    GL_RED,
-    GL_FLOAT,
-    gpuChannels.Dzz.GetVoxels().data(),
-    true));
+      width,
+      height,
+      depth,
+      GL_RGB32F,
+      GL_RGB,
+      GL_FLOAT,
+      principalEigenvectorRgb.data(),
+      true));
+
+  // Texture 3 (RGB): (L1, L2, L3)
+  const std::vector<float> eigenvaluesRgb = PackRgbChannels(
+      gpuChannels.L1,
+      gpuChannels.L2,
+      gpuChannels.L3);
   textureSet.AddTexture(std::make_shared<Texture3D>(
-    gpuChannels.Dxy.GetMetadata().dimensions.x,
-    gpuChannels.Dxy.GetMetadata().dimensions.y,
-    gpuChannels.Dxy.GetMetadata().dimensions.z,
-    GL_R32F,
-    GL_RED,
-    GL_FLOAT,
-    gpuChannels.Dxy.GetVoxels().data(),
-    true));
+      width,
+      height,
+      depth,
+      GL_RGB32F,
+      GL_RGB,
+      GL_FLOAT,
+      eigenvaluesRgb.data(),
+      true));
+
+  // Texture 4: (FA, MD, AD, RD)
+  const std::vector<float> scalarMetricsRgba = PackRgbaChannels(
+      gpuChannels.FA,
+      gpuChannels.MD,
+      gpuChannels.AD,
+      gpuChannels.RD);
   textureSet.AddTexture(std::make_shared<Texture3D>(
-    gpuChannels.Dxz.GetMetadata().dimensions.x,
-    gpuChannels.Dxz.GetMetadata().dimensions.y,
-    gpuChannels.Dxz.GetMetadata().dimensions.z,
-    GL_R32F,
-    GL_RED,
-    GL_FLOAT,
-    gpuChannels.Dxz.GetVoxels().data(),
-    true));
-  textureSet.AddTexture(std::make_shared<Texture3D>(
-    gpuChannels.Dyz.GetMetadata().dimensions.x,
-    gpuChannels.Dyz.GetMetadata().dimensions.y,
-    gpuChannels.Dyz.GetMetadata().dimensions.z,
-    GL_R32F,
-    GL_RED,
-    GL_FLOAT,
-    gpuChannels.Dyz.GetVoxels().data(),
-    true));
+      width,
+      height,
+      depth,
+      GL_RGBA32F,
+      GL_RGBA,
+      GL_FLOAT,
+      scalarMetricsRgba.data(),
+      true));
+
+  InitializeRenderModes();
 }
 
 /**
@@ -149,44 +241,18 @@ DTIVolume::DTIVolume(DTIVolumeChannels channels,
 void DTIVolume::Apply(Shader &shader) const
 {
   Volume::Apply(shader);
+  shader["shader.selectedChannel"] = selectedChannel;
 }
 
 /**
  * @brief Draw the DTI volume using the provided frame uniforms. This sets up blending and depth state for proper volume rendering.
  *        Bind the DTI textures and draw the geometry. Restore GL state afterwards.
- * 
- * @param frameUniforms 
+ *
+ * @param frameUniforms
  */
 void DTIVolume::Draw(const UniformProvider &frameUniforms) const
 {
-  if (!IsValid() || !visible)
-  {
-    return;
-  }
-
-  GLboolean previousBlendEnabled = glIsEnabled(GL_BLEND);
-  GLboolean previousDepthWriteMask = GL_TRUE;
-  glGetBooleanv(GL_DEPTH_WRITEMASK, &previousDepthWriteMask);
-
-  glEnable(GL_BLEND);
-  glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-  glDepthMask(GL_FALSE);
-
-  shader->Use();
-  frameUniforms.Apply(*shader);
-  shader->Apply(*shader);
-  Apply(*shader);
-  shader->SetMat4("volumeObject.modelMatrix", BuildModelMatrix());
-  shader->SetMat4("volumeObject.inverseModelMatrix", glm::inverse(BuildModelMatrix()));
-  GetTextureSet().Bind(*shader, "volumeTextures");
-  
-  geometry->Draw(*shader);
-
-  if (!previousBlendEnabled)
-  {
-    glDisable(GL_BLEND);
-  }
-  glDepthMask(previousDepthWriteMask);
+  Volume::Draw(frameUniforms);
 }
 
 /**
@@ -200,53 +266,151 @@ void DTIVolume::CollectInspectableFields(std::vector<UiField> &out, const std::s
   Volume::CollectInspectableFields(out, groupPrefix);
 
   const std::string group = groupPrefix.empty() ? "DTI" : (groupPrefix + "/DTI");
+
+  // Render mode selection field
+  UiField renderModeField;
+  renderModeField.group = group;
+  renderModeField.label = "Render Mode";
+  renderModeField.kind = UiFieldKind::ComboBox;
+  renderModeField.comboItems.reserve(renderModes.size());
+  for (const RenderMode &mode : renderModes)
+  {
+    renderModeField.comboItems.push_back(mode.label);
+  }
+  renderModeField.getter = [this]() -> UiFieldValue
+  {
+    return selectedRenderMode;
+  };
+  renderModeField.setter = [this](const UiFieldValue &value)
+  {
+    if (!std::holds_alternative<int>(value))
+    {
+      return;
+    }
+
+    const int selected = std::get<int>(value);
+    if (!SetActiveRenderMode(selected))
+    {
+      std::cout << "Failed to switch DTI render mode index: " << selected << std::endl;
+    }
+  };
+  out.push_back(std::move(renderModeField));
+
+  // Only show channel selection when in the channel slice render mode (index 0)
+  if (selectedRenderMode == 0)
+  {
+    UiField selectedChannelField;
+    selectedChannelField.group = group;
+    selectedChannelField.label = "Selected Channel";
+    selectedChannelField.kind = UiFieldKind::ComboBox;
+    selectedChannelField.comboItems = {
+        "Dxx", "Dyy", "Dzz", "Dxy", "Dxz", "Dyz",
+        "EVx", "EVy", "EVz",
+        "FA", "MD", "AD", "RD",
+        "L1", "L2", "L3"};
+    selectedChannelField.getter = [this]() -> UiFieldValue
+    {
+      return selectedChannel;
+    };
+    selectedChannelField.setter = [this](const UiFieldValue &value)
+    {
+      if (!std::holds_alternative<int>(value))
+      {
+        return;
+      }
+
+      const int selected = std::get<int>(value);
+      if (selected < 0 || selected > 15)
+      {
+        return;
+      }
+
+      selectedChannel = selected;
+    };
+    out.push_back(std::move(selectedChannelField));
+  }
 }
 
 /**
- * @brief Return the major eigenvector at the given voxel coordinate.
+ * @brief Initialize the available render modes for the DTI volume.
+ *        Each render mode corresponds to a different shader that visualizes the DTI data in a specific way (e.g. channel slice, principal eigenvector RGB).
  *
- * @param voxelCoord
- * @param outVector
  */
-void DTIVolume::GetMajorEigenVectorAt(glm::ivec3 voxelCoord, glm::vec3 &outVector) const
+void DTIVolume::InitializeRenderModes()
 {
-  // 1. Fetch tensor components at voxel
-  float Dxx = channels.Dxx.GetValue(voxelCoord);
-  float Dyy = channels.Dyy.GetValue(voxelCoord);
-  float Dzz = channels.Dzz.GetValue(voxelCoord);
-  float Dxy = channels.Dxy.GetValue(voxelCoord);
-  float Dxz = channels.Dxz.GetValue(voxelCoord);
-  float Dyz = channels.Dyz.GetValue(voxelCoord);
+  renderModes.clear();
 
-  // 2. Construct symmetric tensor
-  // [ Dxx Dxy Dxz ]
-  // [ Dxy Dyy Dyz ]
-  // [ Dxz Dyz Dzz ]
-
-  // 3. Power iteration to find dominant eigenvector
-  glm::vec3 v(1.0f, 0.0f, 0.0f); // initial guess
-  v = NormalizeSafe(v);
-
-  const int maxIter = 50;
-  const float tol = 1e-5f;
-
-  for (int i = 0; i < maxIter; ++i)
+  // Channel Slice Mode
+  std::shared_ptr<Shader> channelSliceShader = std::make_shared<Shader>(
+      "shaders/volume_vertex.glsl",
+      "shaders/dti_fragment_shaders/volume_dti_tensor_fragment.glsl");
+  if (channelSliceShader && channelSliceShader->ID != 0)
   {
-    glm::vec3 v_new;
-
-    // Matrix-vector multiplication
-    v_new.x = Dxx * v.x + Dxy * v.y + Dxz * v.z;
-    v_new.y = Dxy * v.x + Dyy * v.y + Dyz * v.z;
-    v_new.z = Dxz * v.x + Dyz * v.y + Dzz * v.z;
-
-    v_new = NormalizeSafe(v_new);
-
-    // Convergence check
-    if (glm::length(v_new - v) < tol)
-      break;
-
-    v = v_new;
+    (*channelSliceShader)["shader.sliceZ"] = 0.5f;
+    channelSliceShader->SetUniformUiFloatRange("shader.sliceZ", 0.0f, 1.0f, 0.001f);
+    renderModes.push_back(RenderMode{"Channel Slice", channelSliceShader});
   }
 
-  outVector = NormalizeSafe(v);
+  // Principal Eigenvector RGB Mode
+  std::shared_ptr<Shader> principalDirectionShader = std::make_shared<Shader>(
+      "shaders/volume_vertex.glsl",
+      "shaders/dti_fragment_shaders/volume_dti_ev_slice_fragment.glsl");
+
+  if (principalDirectionShader && principalDirectionShader->ID != 0)
+  {
+    (*principalDirectionShader)["shader.sliceZ"] = 0.5f;
+    principalDirectionShader->SetUniformUiFloatRange("shader.sliceZ", 0.0f, 1.0f, 0.001f);
+    (*principalDirectionShader)["shader.density"] = 1.0f;
+    principalDirectionShader->SetUniformUiFloatRange("shader.density", 0.0f, 20.0f, 0.01f);
+    renderModes.push_back(RenderMode{"Principal EV RGB", principalDirectionShader});
+  }
+
+  // Additional render modes can be added here following the same pattern.
+
+  if (renderModes.empty())
+  {
+    throw std::runtime_error("DTIVolume could not initialize any valid render mode shader.");
+  }
+
+  SetActiveRenderMode(0);
+}
+
+/**
+ * @brief Set the active render mode by index. This changes which shader is used for rendering the DTI volume.
+ *
+ * @param modeIndex
+ * @return true
+ * @return false
+ */
+bool DTIVolume::SetActiveRenderMode(int modeIndex)
+{
+  if (modeIndex < 0 || modeIndex >= static_cast<int>(renderModes.size()))
+  {
+    return false;
+  }
+
+  const RenderMode &mode = renderModes[static_cast<size_t>(modeIndex)];
+  if (!mode.shader || mode.shader->ID == 0)
+  {
+    return false;
+  }
+
+  selectedRenderMode = modeIndex;
+  shader = mode.shader; // Set the base shader to the active render mode shader. This will be used in Draw().
+  return true;
+}
+
+/**
+ * @brief Get a pointer to the active render mode.
+ *
+ * @return const DTIVolume::RenderMode*
+ */
+const DTIVolume::RenderMode *DTIVolume::GetActiveRenderMode() const
+{
+  if (selectedRenderMode < 0 || selectedRenderMode >= static_cast<int>(renderModes.size()))
+  {
+    return nullptr;
+  }
+
+  return &renderModes[static_cast<size_t>(selectedRenderMode)];
 }

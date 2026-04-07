@@ -36,11 +36,6 @@ void VolumeTextureSet::Bind(Shader& shader, const std::string& uniformBaseName) 
     }
 
     const std::string uniformName = uniformBaseName + "[" + std::to_string(i) + "]";
-    if (!shader.HasUniform(uniformName))
-    {
-      continue;
-    }
-
     textures[i]->Bind(kVolumeTextureBaseUnit + static_cast<unsigned int>(i));
     shader.SetTexture(uniformName, static_cast<int>(kVolumeTextureBaseUnit + static_cast<unsigned int>(i)));
   }

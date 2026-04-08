@@ -33,6 +33,9 @@ struct DTIVolumeChannels
   VolumeData MD;
   VolumeData AD;
   VolumeData RD;
+
+  // Binary skull extraction mask (1 = keep voxel, 0 = reject voxel).
+  VolumeData Mask;
 };
 
 class DTIVolume final : public Volume

@@ -365,6 +365,42 @@ void DTIVolume::InitializeRenderModes()
     renderModes.push_back(RenderMode{"Principal EV RGB", principalDirectionShader});
   }
 
+  // 3D FA Raymarch Mode
+  std::shared_ptr<Shader> faRaymarchShader = std::make_shared<Shader>(
+      "shaders/volume_vertex.glsl",
+      "shaders/dti_fragment_shaders/volume_dti_fa_raymarch_fragment.glsl");
+
+  if (faRaymarchShader && faRaymarchShader->ID != 0)
+  {
+    (*faRaymarchShader)["shader.threshold"] = 0.15f;
+    faRaymarchShader->SetUniformUiFloatRange("shader.threshold", 0.0f, 1.0f, 0.001f);
+    (*faRaymarchShader)["shader.density"] = 1.0f;
+    faRaymarchShader->SetUniformUiFloatRange("shader.density", 0.0f, 20.0f, 0.01f);
+    (*faRaymarchShader)["shader.stepSize"] = 0.0f;
+    faRaymarchShader->SetUniformUiFloatRange("shader.stepSize", 0.0f, 0.1f, 0.0005f);
+    (*faRaymarchShader)["shader.maxSteps"] = 512;
+    faRaymarchShader->SetUniformUiIntRange("shader.maxSteps", 1, 2048);
+    renderModes.push_back(RenderMode{"FA 3D Raymarch", faRaymarchShader});
+  }
+
+  // 3D direction color-coded raymarch mode.
+  std::shared_ptr<Shader> directionRaymarchShader = std::make_shared<Shader>(
+      "shaders/volume_vertex.glsl",
+      "shaders/dti_fragment_shaders/volume_dti_direction_raymarch_fragment.glsl");
+
+  if (directionRaymarchShader && directionRaymarchShader->ID != 0)
+  {
+    (*directionRaymarchShader)["shader.threshold"] = 0.15f;
+    directionRaymarchShader->SetUniformUiFloatRange("shader.threshold", 0.0f, 1.0f, 0.001f);
+    (*directionRaymarchShader)["shader.density"] = 1.0f;
+    directionRaymarchShader->SetUniformUiFloatRange("shader.density", 0.0f, 20.0f, 0.01f);
+    (*directionRaymarchShader)["shader.stepSize"] = 0.0005f;
+    directionRaymarchShader->SetUniformUiFloatRange("shader.stepSize", 0.0005f, 0.1f, 0.0005f);
+    (*directionRaymarchShader)["shader.maxSteps"] = 512;
+    directionRaymarchShader->SetUniformUiIntRange("shader.maxSteps", 1, 2048);
+    renderModes.push_back(RenderMode{"Direction 3D Raymarch", directionRaymarchShader});
+  }
+
   // Additional render modes can be added here following the same pattern.
 
   if (renderModes.empty())

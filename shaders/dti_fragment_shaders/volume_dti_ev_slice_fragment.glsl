@@ -53,7 +53,7 @@ bool IntersectBox(vec3 rayOrigin, vec3 rayDirection, out float tMin, out float t
 
 void main()
 {
-  if (volume.textureCount < 3)
+  if (volume.textureCount < 5)
   {
     discard;
   }

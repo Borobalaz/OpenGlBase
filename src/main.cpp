@@ -95,7 +95,7 @@ int main()
   DtiVolumeScene scene;
   scene.Init();
   if (!scene.LoadDataset(
-    "assets/volumes/dwi/HARDI150.nii.gz",
+    "assets/volumes/dwi/HARDI150_hdbet_masked4d.nii.gz",
     "assets/volumes/dwi/HARDI150.bval",
     "assets/volumes/dwi/HARDI150.bvec"))
   {

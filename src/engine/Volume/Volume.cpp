@@ -63,8 +63,16 @@ void Volume::Draw(const UniformProvider& frameUniforms) const
   frameUniforms.Apply(*shader);
   shader->Apply(*shader);
   Apply(*shader);
-  shader->SetMat4("volumeObject.modelMatrix", BuildModelMatrix());
-  shader->SetMat4("volumeObject.inverseModelMatrix", glm::inverse(BuildModelMatrix()));
+  const glm::mat4 modelMatrix = BuildModelMatrix();
+  const glm::mat4 inverseModelMatrix = glm::inverse(modelMatrix);
+  if (shader->HasUniform("volumeObject.modelMatrix"))
+  {
+    shader->SetMat4("volumeObject.modelMatrix", modelMatrix);
+  }
+  if (shader->HasUniform("volumeObject.inverseModelMatrix"))
+  {
+    shader->SetMat4("volumeObject.inverseModelMatrix", inverseModelMatrix);
+  }
   GetTextureSet().Bind(*shader, "volumeTextures");
   geometry->Draw(*shader);
 

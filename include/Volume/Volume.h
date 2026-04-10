@@ -27,13 +27,13 @@ public:
   const VolumeTextureSet &GetTextureSet() const { return textureSet; }
 
   // Getters and setters
-  const glm::vec3 &getPosition() const { return position; }
-  const glm::vec3 &getRotation() const { return rotation; }
-  const glm::vec3 &getScale() const { return scale; }
+  const glm::vec3 &GetPosition() const { return position; }
+  const glm::vec3 &GetRotation() const { return rotation; }
+  const glm::vec3 &GetScale() const { return scale; }
 
-  void setPosition(const glm::vec3 &newPosition) { position = newPosition; }
-  void setRotation(const glm::vec3 &newRotation) { rotation = newRotation; }
-  void setScale(const glm::vec3 &newScale) { scale = newScale; }
+  void SetPosition(const glm::vec3 &newPosition) { position = newPosition; }
+  void SetRotation(const glm::vec3 &newRotation) { rotation = newRotation; }
+  void SetScale(const glm::vec3 &newScale) { scale = newScale; }
 
 private:
   // Transform properties

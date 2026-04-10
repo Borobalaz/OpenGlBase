@@ -88,8 +88,8 @@ Scene::Scene()
     CreateSeedVolumeData(8, 8, 8),
     mandelbulbVolumeShader
   );
-  mandelbulbVolume->setPosition(glm::vec3(0.0f, 0.0f, 0.0f));
-  mandelbulbVolume->setScale(glm::vec3(1.5f, 1.5f, 1.5f));
+  mandelbulbVolume->SetPosition(glm::vec3(0.0f, 0.0f, 0.0f));
+  mandelbulbVolume->SetScale(glm::vec3(1.5f, 1.5f, 1.5f));
 
   (*mandelbulbVolumeShader)["power"] = 8.0f;
   (*mandelbulbVolumeShader)["bailout"] = 8.0f;

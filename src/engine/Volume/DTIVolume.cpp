@@ -401,6 +401,32 @@ void DTIVolume::InitializeRenderModes()
     renderModes.push_back(RenderMode{"Direction 3D Raymarch", directionRaymarchShader});
   }
 
+  // Lit FA isosurface mode with ambient occlusion.
+  std::shared_ptr<Shader> surfaceLitShader = std::make_shared<Shader>(
+      "shaders/volume_vertex.glsl",
+      "shaders/dti_fragment_shaders/volume_dti_surface_lit_fragment.glsl");
+
+  if (surfaceLitShader && surfaceLitShader->ID != 0)
+  {
+    (*surfaceLitShader)["shader.threshold"] = 0.1f;
+    surfaceLitShader->SetUniformUiFloatRange("shader.threshold", 0.0f, 1.0f, 0.001f);
+    (*surfaceLitShader)["shader.stepSize"] = 0.0f;
+    surfaceLitShader->SetUniformUiFloatRange("shader.stepSize", 0.0f, 0.1f, 0.0005f);
+    (*surfaceLitShader)["shader.maxSteps"] = 200;
+    surfaceLitShader->SetUniformUiIntRange("shader.maxSteps", 1, 2048);
+    (*surfaceLitShader)["shader.specularStrength"] = 0.5f;
+    surfaceLitShader->SetUniformUiFloatRange("shader.specularStrength", 0.0f, 2.0f, 0.01f);
+    (*surfaceLitShader)["shader.shininess"] = 18.0f;
+    surfaceLitShader->SetUniformUiFloatRange("shader.shininess", 2.0f, 256.0f, 1.0f);
+    (*surfaceLitShader)["shader.aoStrength"] = 0.85f;
+    surfaceLitShader->SetUniformUiFloatRange("shader.aoStrength", 0.0f, 2.0f, 0.01f);
+    (*surfaceLitShader)["shader.aoRadius"] = 0.04f;
+    surfaceLitShader->SetUniformUiFloatRange("shader.aoRadius", 0.005f, 0.2f, 0.001f);
+    (*surfaceLitShader)["shader.aoSamples"] = 8;
+    surfaceLitShader->SetUniformUiIntRange("shader.aoSamples", 1, 24);
+    renderModes.push_back(RenderMode{"FA Surface Lit", surfaceLitShader});
+  }
+
   // Additional render modes can be added here following the same pattern.
 
   if (renderModes.empty())

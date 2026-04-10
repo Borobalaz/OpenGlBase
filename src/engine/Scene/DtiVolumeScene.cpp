@@ -4,6 +4,9 @@
 #include "PointLight.h"
 #include "DirectionalLight.h"
 #include "PerspectiveCamera.h"
+#include "Material.h"
+#include "Mesh.h"
+#include "GameObject.h"
 
 #include <iostream>
 #include <glm/glm.hpp>
@@ -65,7 +68,7 @@ bool DtiVolumeScene::LoadDataset(
     // Create DTI volume from processed channels with tensor-eigenvector shader
     std::shared_ptr<Shader> volumeShader = std::make_shared<Shader>(
         "shaders/volume_vertex.glsl",
-        "shaders/volume_dti_tensor_fragment.glsl"
+        "shaders/dti_fragment_shaders/volume_dti_tensor_fragment.glsl"
       );
     (*volumeShader)["shader.sliceZ"] = 0.5f;
     volumeShader->SetUniformUiFloatRange("shader.sliceZ", 0.0f, 1.0f, 0.001f);
@@ -73,10 +76,35 @@ bool DtiVolumeScene::LoadDataset(
     volumeShader->SetUniformUiFloatRange("shader.density", 0.0f, 1.0f, 0.0001f);
     
     dtiVolume = std::make_shared<DTIVolume>(result.channels, volumeShader);
-        
+    dtiVolume->SetRotation(glm::vec3(-90.0f / 180.0f * glm::pi<float>(), 0.0f, 0.0f));
+
     // Add to scene for rendering
     ClearVolumes();
     AddVolume(dtiVolume);
+
+    ClearGameObjects();
+    if (result.surfaceMesh)
+    {
+      std::shared_ptr<Shader> meshShader = std::make_shared<Shader>(
+          "shaders/vertex.glsl",
+          "shaders/fragment.glsl");
+
+      std::shared_ptr<Material> meshMaterial = std::make_shared<Material>(meshShader);
+      meshMaterial->SetAmbientColor(glm::vec3(0.35f, 0.35f, 0.35f));
+      meshMaterial->SetDiffuseColor(glm::vec3(0.62f, 0.62f, 0.62f));
+      meshMaterial->SetSpecularColor(glm::vec3(0.08f, 0.08f, 0.08f));
+      meshMaterial->SetShininess(18.0f);
+
+      result.surfaceMesh->SetMaterial(meshMaterial);
+      std::shared_ptr<GameObject> brainSurfaceObject = std::make_shared<GameObject>();
+      brainSurfaceObject->AddMesh(result.surfaceMesh);
+      brainSurfaceObject->SetRotation(glm::vec3(-90.0f / 180.0f * glm::pi<float>(), 0.0f, 0.0f));
+      AddGameObject(brainSurfaceObject);
+    }
+    else
+    {
+      result.report.warnings.push_back("No brain surface mesh was generated for DTI scene rendering.");
+    }
 
     return true;
   }

@@ -6,6 +6,7 @@
 
 #include <glm/glm.hpp>
 
+#include "Mesh.h"
 #include "VolumeData.h"
 #include "DTIVolume.h"
 
@@ -26,6 +27,7 @@ struct MriPreprocessingReport
 struct MriPreprocessingResult
 {
   DTIVolumeChannels channels;
+  std::shared_ptr<Mesh> surfaceMesh;
   MriPreprocessingReport report;
 };
 
@@ -53,6 +55,7 @@ struct MriPreprocessingContext
 
   // output
   DTIVolumeChannels outputChannels;
+  std::shared_ptr<Mesh> outputSurfaceMesh;
 };
 
 /**

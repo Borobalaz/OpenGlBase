@@ -2,11 +2,11 @@
 
 #include "Preprocessing/MriPreprocessingPipeline.h"
 
-class DWISkullExtractionStage final : public IMriPreprocessingStage
+class DWIBrainSurfaceMeshStage final : public IMriPreprocessingStage
 {
 public:
   const char *Name() const override;
   void Execute(MriPreprocessingContext &context) const override;
 };
 
-std::unique_ptr<IMriPreprocessingStage> CreateDwiSkullExtractionStage();
+std::unique_ptr<IMriPreprocessingStage> CreateDwiBrainSurfaceMeshStage();

@@ -108,6 +108,7 @@ Shader::UniformSlotProxy& Shader::UniformSlotProxy::operator=(const glm::mat4& v
  * @param fragmentPath 
  */
 Shader::Shader(const std::string& vertexPath, const std::string& fragmentPath)
+  : vertexPath(vertexPath), fragmentPath(fragmentPath)
 {
   std::string vertexCode = ReadFile(vertexPath);
   std::string fragmentCode = ReadFile(fragmentPath);
@@ -149,6 +150,10 @@ Shader::Shader(const std::string& vertexPath, const std::string& fragmentPath)
 
   glDeleteShader(vertexShader);
   glDeleteShader(fragmentShader);
+
+  // Initialize file modification times for hot reload
+  lastVertexModTime = GetFileModTime(vertexPath);
+  lastFragmentModTime = GetFileModTime(fragmentPath);
 }
 
 /**
@@ -843,4 +848,114 @@ void Shader::LogUniformTypeMismatch(const std::string& name,
 Shader::~Shader()
 {
   glDeleteProgram(ID);
+}
+
+/**
+ * @brief Check if shader source files have changed and reload if needed.
+ *        This enables hot reload during development.
+ * 
+ * @return true if shader was reloaded, false otherwise
+ */
+bool Shader::ReloadIfChanged()
+{
+  if (ID == 0) {
+    return false; // Invalid shader, skip reload
+  }
+
+  auto vertexModTime = GetFileModTime(vertexPath);
+  auto fragmentModTime = GetFileModTime(fragmentPath);
+
+  // Check if either file has been modified since last load
+  if (vertexModTime == lastVertexModTime && 
+      fragmentModTime == lastFragmentModTime) {
+    return false; // No changes detected
+  }
+
+  std::cout << "Shader file change detected, reloading: " << vertexPath << ", " << fragmentPath << "\n";
+
+  std::string vertexCode = ReadFile(vertexPath);
+  std::string fragmentCode = ReadFile(fragmentPath);
+
+  if (vertexCode.empty() || fragmentCode.empty()) {
+    std::cout << "Failed to read shader files\n";
+    return false;
+  }
+
+  // Attempt to rebuild the shader program
+  if (RebuildProgram(vertexCode, fragmentCode)) {
+    lastVertexModTime = vertexModTime;
+    lastFragmentModTime = fragmentModTime;
+    std::cout << "Shader reloaded successfully\n";
+    return true;
+  }
+
+  std::cout << "Shader rebuild failed, keeping previous shader\n";
+  return false;
+}
+
+/**
+ * @brief Get the last modification time of a file.
+ * 
+ * @param path The file path
+ * @return std::filesystem::file_time_type The modification time
+ */
+std::filesystem::file_time_type Shader::GetFileModTime(const std::string& path) const
+{
+  try {
+    return std::filesystem::last_write_time(path);
+  } catch (const std::exception& e) {
+    std::cout << "Error getting modification time for " << path << ": " << e.what() << "\n";
+    return std::filesystem::file_time_type::min();
+  }
+}
+
+/**
+ * @brief Rebuild the shader program from new source code while preserving uniform state.
+ * 
+ * @param vertexCode The new vertex shader source
+ * @param fragmentCode The new fragment shader source
+ * @return true if rebuild succeeded, false otherwise
+ */
+bool Shader::RebuildProgram(const std::string& vertexCode, const std::string& fragmentCode)
+{
+  unsigned int vertexShader = Compile(GL_VERTEX_SHADER, vertexCode);
+  unsigned int fragmentShader = Compile(GL_FRAGMENT_SHADER, fragmentCode);
+
+  if (vertexShader == 0 || fragmentShader == 0) {
+    std::cout << "Shader compilation failed during rebuild\n";
+    if (vertexShader != 0) glDeleteShader(vertexShader);
+    if (fragmentShader != 0) glDeleteShader(fragmentShader);
+    return false;
+  }
+
+  unsigned int newProgram = glCreateProgram();
+  glAttachShader(newProgram, vertexShader);
+  glAttachShader(newProgram, fragmentShader);
+  glLinkProgram(newProgram);
+
+  int success;
+  char infoLog[512];
+  glGetProgramiv(newProgram, GL_LINK_STATUS, &success);
+
+  if (!success) {
+    glGetProgramInfoLog(newProgram, 512, NULL, infoLog);
+    std::cout << "Shader linking failed during rebuild:\n" << infoLog << std::endl;
+    glDeleteProgram(newProgram);
+    glDeleteShader(vertexShader);
+    glDeleteShader(fragmentShader);
+    return false;
+  }
+
+  // Successfully linked new program - replace old one
+  glDeleteProgram(ID);
+  ID = newProgram;
+
+  // Cache uniforms from the new program
+  CacheActiveUniforms();
+
+  // Clean up shader objects
+  glDeleteShader(vertexShader);
+  glDeleteShader(fragmentShader);
+
+  return true;
 }

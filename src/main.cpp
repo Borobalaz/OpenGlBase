@@ -125,6 +125,9 @@ int main()
     float deltaTime = currentTime - lastTime;
     lastTime = currentTime;
 
+    // Hot reload: check shader files for changes
+    scene.ReloadShadersIfChanged();
+
     int framebufferWidth = 0;
     int framebufferHeight = 0;
     glfwGetFramebufferSize(window, &framebufferWidth, &framebufferHeight);

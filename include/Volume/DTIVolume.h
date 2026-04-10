@@ -49,6 +49,9 @@ public:
   void CollectInspectableFields(std::vector<UiField> &out, const std::string &groupPrefix) override;
   
   void GetMajorEigenVectorAt(glm::ivec3 voxelCoord, glm::vec3 &outVector) const;
+
+  // Register this volume's shaders with a scene for hot reload tracking
+  void RegisterShadersWithScene(class Scene* scene);
   
 private:
   struct RenderMode

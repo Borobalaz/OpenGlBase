@@ -8,6 +8,7 @@
 #include <stdexcept>
 
 #include "Texture3D.h"
+#include "Scene/Scene.h"
 
 namespace
 {
@@ -475,4 +476,29 @@ const DTIVolume::RenderMode *DTIVolume::GetActiveRenderMode() const
   }
 
   return &renderModes[static_cast<size_t>(selectedRenderMode)];
+}
+
+/**
+ * @brief Register all render mode shaders with a scene for hot reload tracking.
+ *        This allows shader changes to be detected and reloaded at runtime.
+ *
+ * @param scene The scene to register shaders with
+ */
+void DTIVolume::RegisterShadersWithScene(Scene* scene)
+{
+  if (!scene)
+  {
+    return;
+  }
+
+  for (size_t i = 0; i < renderModes.size(); ++i)
+  {
+    const auto& mode = renderModes[i];
+    if (mode.shader)
+    {
+      // Use render mode label as a unique identifier for the shader
+      std::string shaderId = "DTIVolume/" + mode.label;
+      scene->RegisterShader(shaderId, mode.shader);
+    }
+  }
 }

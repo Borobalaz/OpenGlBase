@@ -344,6 +344,35 @@ void Scene::ClearVolumes()
 }
 
 /**
+ * @brief Register a shader with the scene for hot reload tracking
+ * 
+ * @param name The identifier name for this shader
+ * @param shader The shader to track
+ */
+void Scene::RegisterShader(const std::string& name, std::shared_ptr<Shader> shader)
+{
+  if (shader)
+  {
+    shaders[name] = shader;
+  }
+}
+
+/**
+ * @brief Hot reload: check all shader files for modifications and reload if changed
+ * 
+ */
+void Scene::ReloadShadersIfChanged()
+{
+  for (auto& [name, shader] : shaders)
+  {
+    if (shader && shader->ReloadIfChanged())
+    {
+      // Shader was reloaded successfully
+    }
+  }
+}
+
+/**
  * @brief Get a reference to the scene's camera
  * 
  * @return Camera& 

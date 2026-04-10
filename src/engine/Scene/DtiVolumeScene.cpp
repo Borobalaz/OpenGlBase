@@ -49,6 +49,7 @@ bool DtiVolumeScene::LoadDataset(
       return false;
     }
 
+    // Print preprocessing report
     std::cout << "Loaded: " << result.report.sourceVolumePath << std::endl;
     std::cout << "Executed stages:\n";
     for (const auto& stage : result.report.executedStages)
@@ -81,6 +82,9 @@ bool DtiVolumeScene::LoadDataset(
     // Add to scene for rendering
     ClearVolumes();
     AddVolume(dtiVolume);
+
+    // Register shaders for hot reload tracking
+    dtiVolume->RegisterShadersWithScene(this);
 
     ClearGameObjects();
     if (result.surfaceMesh)

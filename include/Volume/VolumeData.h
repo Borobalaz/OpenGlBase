@@ -20,6 +20,8 @@ public:
   VolumeData();
   explicit VolumeData(const std::string &filePath);
   VolumeData(int width, int height, int depth, const glm::vec3 &spacing = glm::vec3(1.0f));
+
+  static size_t FlatIndex(int x, int y, int z, int width, int height);
   
   void Resize(int width, int height, int depth);
 
@@ -36,8 +38,6 @@ public:
   float GetValue(glm::vec3 coord) const;
 
 private:
-  size_t GetFlatIndex(int x, int y, int z) const;
-  
   VolumeMetadata metadata;
   std::vector<float> voxels;
 };

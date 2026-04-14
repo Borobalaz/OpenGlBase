@@ -14,17 +14,11 @@
 #include <iostream>
 
 #include "Preprocessing/MriPreprocessingStages.h"
+#include "VolumeData.h"
 #include "VolumeFileLoader.h"
 
 namespace
 {
-  inline size_t FlatIndex(int x, int y, int z, int width, int height)
-  {
-    return static_cast<size_t>(z) * static_cast<size_t>(height) * static_cast<size_t>(width) +
-           static_cast<size_t>(y) * static_cast<size_t>(width) +
-           static_cast<size_t>(x);
-  }
-
   inline float ClampPositiveSignal(float value)
   {
     return std::max(value, 1e-6f);
@@ -86,7 +80,7 @@ void DWITensorSynthesisStage::Execute(MriPreprocessingContext &context) const
     {
       for (int x = 0; x < width; ++x)
       {
-        const size_t index = FlatIndex(x, y, z, width, height);
+        const size_t index = VolumeData::FlatIndex(x, y, z, width, height);
         for (int frame = 0; frame < frameCount; ++frame)
         {
           const size_t frameOffset = static_cast<size_t>(frame) * spatialVoxelCount;

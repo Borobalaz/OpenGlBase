@@ -12,6 +12,7 @@
 #include <glm/glm.hpp>
 
 #include "ImportedGeometry.h"
+#include "VolumeData.h"
 
 namespace
 {
@@ -22,6 +23,14 @@ namespace
     std::unordered_map<std::uint64_t, unsigned int> edgeToVertexIndex;
   };
 
+  /**
+   * @brief Marching tetrahedra lookup tables for:
+   *        - the 8 cube corners, 
+   *        - the 6 tetrahedra that subdivide a cube, 
+   *        - the edges of a tetrahedron, 
+   *        - and the triangulation cases for each possible inside/outside configuration of the tetrahedron corners.
+   * 
+   */
   constexpr std::array<glm::ivec3, 8> kCubeCornerOffsets = {
       glm::ivec3(0, 0, 0),
       glm::ivec3(1, 0, 0),
@@ -69,13 +78,17 @@ namespace
       {{-1, -1, -1, -1, -1, -1, -1}},
   }};
 
-  inline size_t FlatIndex(int x, int y, int z, int width, int height)
-  {
-    return static_cast<size_t>(z) * static_cast<size_t>(height) * static_cast<size_t>(width) +
-           static_cast<size_t>(y) * static_cast<size_t>(width) +
-           static_cast<size_t>(x);
-  }
-
+  /**
+   * @brief Convert voxel indices to normalized object space coordinates in the range [-0.5, 0.5], 
+   *        accounting for volume dimensions and spacing.
+   * 
+   * @param x 
+   * @param y 
+   * @param z 
+   * @param dims 
+   * @param spacing 
+   * @return glm::vec3 
+   */
   glm::vec3 VoxelToObjectSpace(int x,
                                int y,
                                int z,
@@ -99,6 +112,13 @@ namespace
     return centered / maxExtent;
   }
 
+  /**
+   * @brief Build a unique key for an edge defined by two voxel indices.
+   * 
+   * @param voxelA 
+   * @param voxelB 
+   * @return std::uint64_t 
+   */
   std::uint64_t BuildEdgeKey(size_t voxelA, size_t voxelB)
   {
     const std::uint64_t minV = static_cast<std::uint64_t>(std::min(voxelA, voxelB));
@@ -106,6 +126,20 @@ namespace
     return (minV << 32U) | maxV;
   }
 
+  /**
+   * @brief Get the Or Create Edge Vertex object
+   * 
+   * @param base 
+   * @param dims 
+   * @param spacing 
+   * @param isoValue 
+   * @param cubeValues 
+   * @param cubeVoxelIndices 
+   * @param cornerA 
+   * @param cornerB 
+   * @param buffers 
+   * @return unsigned int 
+   */
   unsigned int GetOrCreateEdgeVertex(const glm::ivec3 &base,
                                      const glm::ivec3 &dims,
                                      const glm::vec3 &spacing,
@@ -158,6 +192,13 @@ namespace
     return newIndex;
   }
 
+  /**
+   * @brief Create an adjacency list mapping each vertex index to a list of neighboring vertex indices based on the triangle indices.
+   * 
+   * @param indices 
+   * @param vertexCount 
+   * @param adjacency 
+   */
   void BuildVertexAdjacency(const std::vector<unsigned int> &indices,
                             size_t vertexCount,
                             std::vector<std::vector<unsigned int>> &adjacency)
@@ -189,6 +230,13 @@ namespace
     }
   }
 
+  /**
+   * @brief Update vertex positions by moving them towards the average position of their neighbors, scaled by the given factor.
+   * 
+   * @param vertices 
+   * @param adjacency 
+   * @param factor 
+   */
   void ApplyLaplacianPass(std::vector<Vertex> &vertices,
                           const std::vector<std::vector<unsigned int>> &adjacency,
                           float factor)
@@ -220,6 +268,15 @@ namespace
     }
   }
 
+  /**
+   * @brief Use Taubin smoothing algorithm to interpolate vertex positions and reduce noise while preserving overall shape.
+   * 
+   * @param vertices 
+   * @param indices 
+   * @param iterations 
+   * @param lambda 
+   * @param mu 
+   */
   void ApplyTaubinSmoothing(std::vector<Vertex> &vertices,
                             const std::vector<unsigned int> &indices,
                             int iterations,
@@ -242,8 +299,13 @@ namespace
     }
   }
 
-  void ComputeVertexNormals(std::vector<Vertex> &vertices,
-                            const std::vector<unsigned int> &indices)
+  /**
+   * @brief Compute vertex normals based on the adjacent faces' orientation.
+   * 
+   * @param vertices 
+   * @param indices 
+   */
+  void ComputeVertexNormals(std::vector<Vertex> &vertices, const std::vector<unsigned int> &indices)
   {
     for (Vertex &vertex : vertices)
     {
@@ -273,8 +335,14 @@ namespace
     }
   }
 
-  std::shared_ptr<Mesh> ExtractSurfaceMeshFromVolume(const VolumeData &source,
-                                                     float isoValue)
+  /**
+   * @brief Run the marching tetrahedra algorithm on the given volume data to extract an isosurface mesh at the specified isoValue.
+   * 
+   * @param source 
+   * @param isoValue represents the threshold for the surface extraction. 
+   * @return std::shared_ptr<Mesh> 
+   */
+  std::shared_ptr<Mesh> ExtractSurfaceMeshFromVolume(const VolumeData &source, float isoValue)
   {
     const VolumeMetadata &metadata = source.GetMetadata();
     const glm::ivec3 dims = metadata.dimensions;
@@ -288,6 +356,7 @@ namespace
     buffers.vertices.reserve(static_cast<size_t>(dims.x) * static_cast<size_t>(dims.y) * 4U);
     buffers.indices.reserve(static_cast<size_t>(dims.x) * static_cast<size_t>(dims.y) * 12U);
 
+    // Core algorithm
     for (int z = 0; z < dims.z - 1; ++z)
     {
       for (int y = 0; y < dims.y - 1; ++y)
@@ -301,7 +370,7 @@ namespace
           for (int c = 0; c < 8; ++c)
           {
             const glm::ivec3 corner = base + kCubeCornerOffsets[static_cast<size_t>(c)];
-            const size_t flat = FlatIndex(corner.x, corner.y, corner.z, dims.x, dims.y);
+            const size_t flat = VolumeData::FlatIndex(corner.x, corner.y, corner.z, dims.x, dims.y);
             cubeVoxelIndices[static_cast<size_t>(c)] = flat;
             cubeValues[static_cast<size_t>(c)] = voxels[flat];
           }
@@ -362,14 +431,17 @@ namespace
       }
     }
 
+    // validation
     if (buffers.vertices.empty() || buffers.indices.empty())
     {
       return nullptr;
     }
 
+    // Surface smoothing and surface normal computation.
     ApplyTaubinSmoothing(buffers.vertices, buffers.indices, 10, 0.5f, -0.53f);
     ComputeVertexNormals(buffers.vertices, buffers.indices);
 
+    // Output
     std::shared_ptr<ImportedGeometry> geometry = std::make_shared<ImportedGeometry>(
         std::move(buffers.vertices),
         std::move(buffers.indices));
@@ -379,6 +451,11 @@ namespace
   }
 }
 
+/**
+ * @brief Get the name of the preprocessing stage.
+ * 
+ * @return const char* 
+ */
 const char *DWIBrainSurfaceMeshStage::Name() const
 {
   return "DWI brain surface mesh";
@@ -397,6 +474,7 @@ void DWIBrainSurfaceMeshStage::Execute(MriPreprocessingContext &context) const
   const VolumeData *sourceVolume = nullptr;
   float isoValue = 0.15f; // 
 
+  // Validation
   if (context.outputChannels.FA.GetVoxelCount() > 0)
   {
     sourceVolume = &context.outputChannels.FA;
@@ -409,6 +487,7 @@ void DWIBrainSurfaceMeshStage::Execute(MriPreprocessingContext &context) const
     return;
   }
 
+  // Run marching tetrahedra to extract surface mesh from the volume data
   const std::shared_ptr<Mesh> extractedMesh = ExtractSurfaceMeshFromVolume(*sourceVolume, isoValue);
   if (!extractedMesh)
   {
@@ -417,9 +496,15 @@ void DWIBrainSurfaceMeshStage::Execute(MriPreprocessingContext &context) const
     return;
   }
 
+  // Output mesh
   context.outputSurfaceMesh = extractedMesh;
 }
 
+/**
+ * @brief Create a Dwi Brain Surface Mesh Stage object
+ * 
+ * @return std::unique_ptr<IMriPreprocessingStage> 
+ */
 std::unique_ptr<IMriPreprocessingStage> CreateDwiBrainSurfaceMeshStage()
 {
   return std::make_unique<DWIBrainSurfaceMeshStage>();

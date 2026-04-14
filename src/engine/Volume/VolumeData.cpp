@@ -70,27 +70,20 @@ void VolumeData::Resize(int width, int height, int depth)
 }
 
 /**
- * @brief Get the flat voxel array index corresponding to the given 3D coordinate. Throws if out of bounds.
+ * @brief Calculate the index of a 3D voxel in a flattened 1D array.
  * 
  * @param x 
  * @param y 
  * @param z 
+ * @param width 
+ * @param height 
  * @return size_t 
  */
-size_t VolumeData::GetFlatIndex(int x, int y, int z) const
+size_t VolumeData::FlatIndex(int x, int y, int z, int width, int height)
 {
-  if (x < 0 || y < 0 || z < 0 ||
-      x >= metadata.dimensions.x ||
-      y >= metadata.dimensions.y ||
-      z >= metadata.dimensions.z)
-  {
-    throw std::out_of_range("VolumeData index is out of bounds.");
-  }
-
-  return static_cast<size_t>(z) * 
-    static_cast<size_t>(metadata.dimensions.y) * 
-    static_cast<size_t>(metadata.dimensions.x) + static_cast<size_t>(y) * 
-    static_cast<size_t>(metadata.dimensions.x) + static_cast<size_t>(x);
+  return static_cast<size_t>(z) * static_cast<size_t>(height) * static_cast<size_t>(width) +
+         static_cast<size_t>(y) * static_cast<size_t>(width) +
+         static_cast<size_t>(x);
 }
 
 /**
@@ -107,6 +100,19 @@ float VolumeData::GetValue(glm::vec3 coord) const
   int x = static_cast<int>(coord.x);
   int y = static_cast<int>(coord.y);
   int z = static_cast<int>(coord.z);
-  size_t index = GetFlatIndex(x, y, z);
+
+  if (x < 0 || y < 0 || z < 0 ||
+      x >= metadata.dimensions.x ||
+      y >= metadata.dimensions.y ||
+      z >= metadata.dimensions.z)
+  {
+    throw std::out_of_range("VolumeData index is out of bounds.");
+  }
+
+  const size_t index = FlatIndex(x,
+                                 y,
+                                 z,
+                                 metadata.dimensions.x,
+                                 metadata.dimensions.y);
   return voxels[index];
 }

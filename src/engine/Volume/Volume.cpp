@@ -12,10 +12,11 @@
  * @param metadata 
  * @param shader 
  */
-Volume::Volume(const VolumeMetadata& metadata,
+Volume::Volume(const glm::ivec3& dimensions,
+               const glm::vec3& spacing,
                std::shared_ptr<Shader> shader)
-  : dimensions(metadata.dimensions),
-    spacing(metadata.spacing),
+  : dimensions(dimensions),
+    spacing(spacing),
     geometry(std::make_shared<VolumeGeometry>()),
     shader(std::move(shader))
 {

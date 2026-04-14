@@ -47,22 +47,23 @@ void DWITensorSynthesisStage::Execute(MriPreprocessingContext &context) const
   const int frameCount = dwiSeries.GetFrameCount();
   std::cout << "DWI series loaded with " << frameCount << " frames." << std::endl;
 
-  const VolumeSeriesMetadata &metadata = dwiSeries.GetMetadata();
-  const int width = metadata.dimensions.x;
-  const int height = metadata.dimensions.y;
-  const int depth = metadata.dimensions.z;
+  const glm::ivec3 &dimensions = dwiSeries.GetDimensions();
+  const glm::vec3 &spacing = dwiSeries.GetSpacing();
+  const int width = dimensions.x;
+  const int height = dimensions.y;
+  const int depth = dimensions.z;
 
   const size_t spatialVoxelCount =
       static_cast<size_t>(width) * static_cast<size_t>(height) * static_cast<size_t>(depth);
   const std::vector<float> &allSignals = dwiSeries.GetVoxels();
 
   // empty output channels
-  VolumeData Dxx(width, height, depth, metadata.spacing);
-  VolumeData Dyy(width, height, depth, metadata.spacing);
-  VolumeData Dzz(width, height, depth, metadata.spacing);
-  VolumeData Dxy(width, height, depth, metadata.spacing);
-  VolumeData Dxz(width, height, depth, metadata.spacing);
-  VolumeData Dyz(width, height, depth, metadata.spacing);
+  VolumeData Dxx(width, height, depth, spacing);
+  VolumeData Dyy(width, height, depth, spacing);
+  VolumeData Dzz(width, height, depth, spacing);
+  VolumeData Dxy(width, height, depth, spacing);
+  VolumeData Dxz(width, height, depth, spacing);
+  VolumeData Dyz(width, height, depth, spacing);
 
   std::vector<float> &DxxVoxels = Dxx.GetVoxels();
   std::vector<float> &DyyVoxels = Dyy.GetVoxels();

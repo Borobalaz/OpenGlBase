@@ -28,11 +28,21 @@ namespace
   }
 }
 
+/**
+ * @brief Get the name of the preprocessing stage.
+ * @return The name of the stage.
+ */
 const char* DWIInputValidationStage::Name() const
 {
   return "DWI input validation";
 }
 
+/**
+ * @brief Validate the existence and basic integrity of the DWI volume and its associated bval/bvec files. 
+ *        If validation passes, populate the context with the resolved file paths and source volume metadata.
+ * 
+ * @param context 
+ */
 void DWIInputValidationStage::Execute(MriPreprocessingContext& context) const
 {
   if (context.request.dwiVolumePath.empty())
@@ -88,16 +98,16 @@ void DWIInputValidationStage::Execute(MriPreprocessingContext& context) const
     throw std::runtime_error("DWI series contains zero frames.");
   }
 
-  const VolumeSeriesMetadata& metadata = dwiSeries->GetMetadata();
-  if (metadata.dimensions.x <= 0 || metadata.dimensions.y <= 0 || metadata.dimensions.z <= 0)
+  const glm::ivec3& dimensions = dwiSeries->GetDimensions();
+  if (dimensions.x <= 0 || dimensions.y <= 0 || dimensions.z <= 0)
   {
     throw std::runtime_error("DWI spatial dimensions are invalid.");
   }
 
   const size_t spatialVoxelCount =
-    static_cast<size_t>(metadata.dimensions.x) *
-    static_cast<size_t>(metadata.dimensions.y) *
-    static_cast<size_t>(metadata.dimensions.z);
+    static_cast<size_t>(dimensions.x) *
+    static_cast<size_t>(dimensions.y) *
+    static_cast<size_t>(dimensions.z);
 
   const std::vector<float>& allSignals = dwiSeries->GetVoxels();
   if (allSignals.size() != spatialVoxelCount * static_cast<size_t>(frameCount))
@@ -106,6 +116,11 @@ void DWIInputValidationStage::Execute(MriPreprocessingContext& context) const
   }
 }
 
+/**
+ * @brief Create a Dwi Input Validation Stage object
+ * 
+ * @return std::unique_ptr<IMriPreprocessingStage> 
+ */
 std::unique_ptr<IMriPreprocessingStage> CreateDwiInputValidationStage()
 {
   return std::make_unique<DWIInputValidationStage>();

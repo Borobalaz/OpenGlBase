@@ -25,11 +25,13 @@ public:
   
   void Resize(int width, int height, int depth);
 
-  int GetWidth() const { return metadata.dimensions.x; }
-  int GetHeight() const { return metadata.dimensions.y; }
-  int GetDepth() const { return metadata.dimensions.z; }
+  int GetWidth() const { return dimensions.x; }
+  int GetHeight() const { return dimensions.y; }
+  int GetDepth() const { return dimensions.z; }
 
-  const VolumeMetadata &GetMetadata() const { return metadata; }
+  const glm::ivec3 &GetDimensions() const { return dimensions; }
+  const glm::vec3 &GetSpacing() const { return spacing; }
+  VolumeMetadata GetMetadata() const { return VolumeMetadata{dimensions, spacing}; }
 
   size_t GetVoxelCount() const { return voxels.size(); }
   std::vector<float> &GetVoxels() { return voxels; }
@@ -38,6 +40,7 @@ public:
   float GetValue(glm::vec3 coord) const;
 
 private:
-  VolumeMetadata metadata;
+  glm::ivec3 dimensions{0, 0, 0};
+  glm::vec3 spacing{1.0f, 1.0f, 1.0f};
   std::vector<float> voxels;
 };

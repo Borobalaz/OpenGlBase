@@ -38,13 +38,15 @@ namespace
   }
 
   bool HasCompatibleMetadata(const VolumeData &candidate,
-                             const VolumeMetadata &reference)
+           const glm::ivec3 &referenceDimensions,
+           const glm::vec3 &referenceSpacing)
   {
-    const VolumeMetadata &metadata = candidate.GetMetadata();
-    return metadata.dimensions == reference.dimensions &&
-           NearlyEqual(metadata.spacing.x, reference.spacing.x) &&
-           NearlyEqual(metadata.spacing.y, reference.spacing.y) &&
-           NearlyEqual(metadata.spacing.z, reference.spacing.z);
+      const glm::ivec3 &dimensions = candidate.GetDimensions();
+      const glm::vec3 &spacing = candidate.GetSpacing();
+      return dimensions == referenceDimensions &&
+        NearlyEqual(spacing.x, referenceSpacing.x) &&
+        NearlyEqual(spacing.y, referenceSpacing.y) &&
+        NearlyEqual(spacing.z, referenceSpacing.z);
   }
 
   std::vector<float> PackRgbaChannels(const VolumeData &r,
@@ -105,7 +107,7 @@ namespace
  */
 DTIVolume::DTIVolume(DTIVolumeChannels channels,
                      std::shared_ptr<Shader> shader)
-    : Volume(channels.Dxx.GetMetadata(), std::move(shader)),
+    : Volume(channels.Dxx.GetDimensions(), channels.Dxx.GetSpacing(), std::move(shader)),
       channels(std::move(channels))
 {
   // Hallod ez konkrétan majdnem 2 héting volt egy bug amit nem találtam meg és lófaszt sem mutatott a volume render.
@@ -132,10 +134,13 @@ DTIVolume::DTIVolume(DTIVolumeChannels channels,
       &gpuChannels.L2,
       &gpuChannels.L3};
 
+  const glm::ivec3 &referenceDimensions = gpuChannels.Dxx.GetDimensions();
+  const glm::vec3 &referenceSpacing = gpuChannels.Dxx.GetSpacing();
+
   // Validate metadata consistency across channels
   for (const VolumeData *channel : metadataValidatedChannels)
   {
-    if (!HasCompatibleMetadata(*channel, gpuChannels.Dxx.GetMetadata()))
+    if (!HasCompatibleMetadata(*channel, referenceDimensions, referenceSpacing))
     {
       throw std::invalid_argument("All DTI channels must have the same dimensions and spacing.");
     }
@@ -150,10 +155,9 @@ DTIVolume::DTIVolume(DTIVolumeChannels channels,
     }
   }
 
-  const VolumeMetadata &metadata = gpuChannels.Dxx.GetMetadata();
-  const int width = metadata.dimensions.x;
-  const int height = metadata.dimensions.y;
-  const int depth = metadata.dimensions.z;
+  const int width = referenceDimensions.x;
+  const int height = referenceDimensions.y;
+  const int depth = referenceDimensions.z;
 
   // Texture 0 (RGB): (Dxx, Dyy, Dzz)
   const std::vector<float> tensorDiagRgb = PackRgbChannels(

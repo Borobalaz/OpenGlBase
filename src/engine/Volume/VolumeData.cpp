@@ -23,7 +23,7 @@ namespace
  * 
  */
 VolumeData::VolumeData()
-    : metadata(), voxels()
+  : dimensions(0, 0, 0), spacing(1.0f, 1.0f, 1.0f), voxels()
 {
 }
 
@@ -48,7 +48,7 @@ VolumeData::VolumeData(const std::string &filePath)
 VolumeData::VolumeData(int width, int height, int depth, const glm::vec3 &spacing): VolumeData()
 {
   Resize(width, height, depth);
-  metadata.spacing = spacing;
+  this->spacing = spacing;
 }
 
 /**
@@ -65,7 +65,7 @@ void VolumeData::Resize(int width, int height, int depth)
     throw std::invalid_argument("Volume dimensions must be positive.");
   }
 
-  metadata.dimensions = glm::ivec3(width, height, depth);
+  dimensions = glm::ivec3(width, height, depth);
   voxels.resize(static_cast<size_t>(width) * static_cast<size_t>(height) * static_cast<size_t>(depth));
 }
 
@@ -102,9 +102,9 @@ float VolumeData::GetValue(glm::vec3 coord) const
   int z = static_cast<int>(coord.z);
 
   if (x < 0 || y < 0 || z < 0 ||
-      x >= metadata.dimensions.x ||
-      y >= metadata.dimensions.y ||
-      z >= metadata.dimensions.z)
+      x >= dimensions.x ||
+      y >= dimensions.y ||
+      z >= dimensions.z)
   {
     throw std::out_of_range("VolumeData index is out of bounds.");
   }
@@ -112,7 +112,7 @@ float VolumeData::GetValue(glm::vec3 coord) const
   const size_t index = FlatIndex(x,
                                  y,
                                  z,
-                                 metadata.dimensions.x,
-                                 metadata.dimensions.y);
+                                 dimensions.x,
+                                 dimensions.y);
   return voxels[index];
 }

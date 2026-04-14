@@ -53,7 +53,9 @@ protected:
   // Only derived classes can construct Volume. 
   // The reason is that only derived classes can be instantiated, 
   //  and in their constructors they have to populate the textureSet with their own data.  
-  Volume(const VolumeMetadata &metadata, std::shared_ptr<Shader> shader);
+    Volume(const glm::ivec3 &dimensions,
+      const glm::vec3 &spacing,
+      std::shared_ptr<Shader> shader);
 
   // The volume data encoded in textures for the shader 
   VolumeTextureSet textureSet;

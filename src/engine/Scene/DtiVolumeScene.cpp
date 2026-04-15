@@ -1,9 +1,9 @@
 #include "Scene/DtiVolumeScene.h"
 #include "Shader.h"
-#include "Skybox.h"
-#include "PointLight.h"
-#include "DirectionalLight.h"
-#include "PerspectiveCamera.h"
+#include "Texture/Skybox.h"
+#include "Light/PointLight.h"
+#include "Light/DirectionalLight.h"
+#include "Camera/PerspectiveCamera.h"
 #include "Material.h"
 #include "Mesh.h"
 #include "GameObject.h"
@@ -72,9 +72,7 @@ bool DtiVolumeScene::LoadDataset(
         "shaders/dti_fragment_shaders/volume_dti_tensor_fragment.glsl"
       );
     (*volumeShader)["shader.sliceZ"] = 0.5f;
-    volumeShader->SetUniformUiFloatRange("shader.sliceZ", 0.0f, 1.0f, 0.001f);
     (*volumeShader)["shader.density"] = 1.0f;
-    volumeShader->SetUniformUiFloatRange("shader.density", 0.0f, 1.0f, 0.0001f);
     
     dtiVolume = std::make_shared<DTIVolume>(result.channels, volumeShader);
     dtiVolume->SetRotation(glm::vec3(-90.0f / 180.0f * glm::pi<float>(), 0.0f, 0.0f));

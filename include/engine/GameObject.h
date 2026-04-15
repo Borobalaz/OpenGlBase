@@ -1,0 +1,34 @@
+#pragma once
+
+#include <memory>
+#include <vector>
+#include <glm/glm.hpp>
+
+#include "Mesh.h"
+#include "IDrawable.h"
+#include "Uniform/UniformProvider.h"
+
+class GameObject : public UniformProvider, public IDrawable
+{
+public:
+  GameObject();
+  ~GameObject();
+
+  void AddMesh(std::shared_ptr<Mesh> mesh);
+
+  void Update(float deltaTime);
+  void Draw(const UniformProvider& frameUniforms) const override;
+  void Apply(Shader& shader) const override;
+
+  void SetPosition(const glm::vec3& pos) { position = pos; }
+  void SetRotation(const glm::vec3& rot) { rotation = rot; }
+  void SetScale(const glm::vec3& s) { scale = s; }
+private:
+  glm::vec3 position;
+  glm::vec3 rotation;
+  glm::vec3 scale;
+
+  glm::mat4 BuildModelMatrix() const;
+
+  std::vector<std::shared_ptr<Mesh>> meshes;
+};

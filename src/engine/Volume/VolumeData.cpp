@@ -1,8 +1,8 @@
-#include "VolumeData.h"
+#include "Volume/VolumeData.h"
 
 #include <utility>
 
-#include "VolumeFileLoader.h"
+#include "Volume/VolumeFileLoader.h"
 
 namespace
 {

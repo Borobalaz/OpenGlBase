@@ -1,4 +1,4 @@
-#include "CubeGeometry.h"
+#include "Geometry/CubeGeometry.h"
 
 CubeGeometry::CubeGeometry()
 {

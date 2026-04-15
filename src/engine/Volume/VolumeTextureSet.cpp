@@ -1,4 +1,4 @@
-#include "VolumeTextureSet.h"
+#include "Volume/VolumeTextureSet.h"
 
 /**
  * @brief Push back a new texture into the set. The texture must be already initialized and valid.

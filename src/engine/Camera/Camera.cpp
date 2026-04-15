@@ -1,4 +1,4 @@
-#include "Camera.h"
+#include "Camera/Camera.h"
 
 #include "Shader.h"
 

@@ -1,4 +1,4 @@
-#include "TypedUniformProvider.h"
+#include "Uniform/TypedUniformProvider.h"
 
 #include <iostream>
 #include <type_traits>

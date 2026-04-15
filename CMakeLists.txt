@@ -8,12 +8,15 @@ endif()
 project(Connectomics-Imaging)
 set(CMAKE_CXX_STANDARD 17)
 
+set(CMAKE_AUTOMOC ON)
+set(CMAKE_AUTOUIC ON)
+set(CMAKE_AUTORCC ON)
+
 find_package(OpenGL REQUIRED)
 find_package(glm CONFIG REQUIRED)
-find_package(glfw3 CONFIG REQUIRED)
 find_package(glad CONFIG REQUIRED)
 find_package(assimp CONFIG REQUIRED)
-find_package(imgui CONFIG REQUIRED)
+find_package(Qt6 REQUIRED COMPONENTS Core Gui OpenGL OpenGLWidgets)
 find_package(ITK CONFIG QUIET COMPONENTS
     ITKCommon
     ITKIOImageBase
@@ -22,6 +25,7 @@ find_package(ITK CONFIG QUIET COMPONENTS
     ITKIOMeta
     ITKIOGDCM
 )
+
 find_path(STB_INCLUDE_DIR
     NAMES stb_image.h
     REQUIRED
@@ -29,40 +33,34 @@ find_path(STB_INCLUDE_DIR
 
 file(GLOB_RECURSE SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp")
 
-# remove any duplicate entries (e.g. same file through different paths)
+set(QT_MAIN "${CMAKE_CURRENT_SOURCE_DIR}/src/app/main.cpp")
+file(GLOB_RECURSE QT_HOST_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/src/ui/qt-adapters/*.cpp")
+list(REMOVE_ITEM SOURCES "${QT_MAIN}" ${QT_HOST_SOURCES})
 list(REMOVE_DUPLICATES SOURCES)
 
-add_executable(app ${SOURCES})
+add_executable(app_qt ${SOURCES} ${QT_MAIN} ${QT_HOST_SOURCES})
 
-target_include_directories(app PRIVATE
+target_include_directories(app_qt PRIVATE
     include
-    include/Camera
-    include/Geometry
-    include/Light
-    include/Movement
-    include/Texture
-    include/Uniform
-    include/Volume
+    include/app
+    include/core
+    include/engine
+    include/ui
     ${STB_INCLUDE_DIR}
 )
 
-target_link_libraries(app PRIVATE
+target_link_libraries(app_qt PRIVATE
     OpenGL::GL
-    glfw
     glm::glm
     glad::glad
     assimp::assimp
-    imgui::imgui
+    Qt6::Core
+    Qt6::Gui
+    Qt6::OpenGL
+    Qt6::OpenGLWidgets
 )
 
 if (ITK_FOUND)
-    target_link_libraries(app PRIVATE ${ITK_LIBRARIES})
-    target_compile_definitions(app PRIVATE CONNECTOMICS_ENABLE_ITK_IO=1)
-endif()
-
-if (WIN32)
-  add_custom_command(TARGET app POST_BUILD
-      COMMAND ${CMAKE_COMMAND} -E copy_if_different
-          $<TARGET_FILE:glfw>
-          $<TARGET_FILE_DIR:app>)
+    target_link_libraries(app_qt PRIVATE ${ITK_LIBRARIES})
+    target_compile_definitions(app_qt PRIVATE CONNECTOMICS_ENABLE_ITK_IO=1)
 endif()

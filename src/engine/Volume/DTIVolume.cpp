@@ -1,4 +1,4 @@
-#include "DTIVolume.h"
+#include "Volume/DTIVolume.h"
 
 #include <algorithm>
 #include <array>
@@ -7,7 +7,7 @@
 #include <string>
 #include <stdexcept>
 
-#include "Texture3D.h"
+#include "Texture/Texture3D.h"
 #include "Scene/Scene.h"
 
 namespace
@@ -260,81 +260,6 @@ void DTIVolume::Draw(const UniformProvider &frameUniforms) const
   Volume::Draw(frameUniforms);
 }
 
-/**
- * @brief IInspectable implementation. Add the DTI-specific fields to the inspectable fields for UI editing.
- *
- * @param out
- * @param groupPrefix
- */
-void DTIVolume::CollectInspectableFields(std::vector<UiField> &out, const std::string &groupPrefix)
-{
-  Volume::CollectInspectableFields(out, groupPrefix);
-
-  const std::string group = groupPrefix.empty() ? "DTI" : (groupPrefix + "/DTI");
-
-  // Render mode selection field
-  UiField renderModeField;
-  renderModeField.group = group;
-  renderModeField.label = "Render Mode";
-  renderModeField.kind = UiFieldKind::ComboBox;
-  renderModeField.comboItems.reserve(renderModes.size());
-  for (const RenderMode &mode : renderModes)
-  {
-    renderModeField.comboItems.push_back(mode.label);
-  }
-  renderModeField.getter = [this]() -> UiFieldValue
-  {
-    return selectedRenderMode;
-  };
-  renderModeField.setter = [this](const UiFieldValue &value)
-  {
-    if (!std::holds_alternative<int>(value))
-    {
-      return;
-    }
-
-    const int selected = std::get<int>(value);
-    if (!SetActiveRenderMode(selected))
-    {
-      std::cout << "Failed to switch DTI render mode index: " << selected << std::endl;
-    }
-  };
-  out.push_back(std::move(renderModeField));
-
-  // Only show channel selection when in the channel slice render mode (index 0)
-  if (selectedRenderMode == 0)
-  {
-    UiField selectedChannelField;
-    selectedChannelField.group = group;
-    selectedChannelField.label = "Selected Channel";
-    selectedChannelField.kind = UiFieldKind::ComboBox;
-    selectedChannelField.comboItems = {
-        "Dxx", "Dyy", "Dzz", "Dxy", "Dxz", "Dyz",
-        "EVx", "EVy", "EVz",
-        "FA", "MD", "AD", "RD",
-        "L1", "L2", "L3"};
-    selectedChannelField.getter = [this]() -> UiFieldValue
-    {
-      return selectedChannel;
-    };
-    selectedChannelField.setter = [this](const UiFieldValue &value)
-    {
-      if (!std::holds_alternative<int>(value))
-      {
-        return;
-      }
-
-      const int selected = std::get<int>(value);
-      if (selected < 0 || selected > 15)
-      {
-        return;
-      }
-
-      selectedChannel = selected;
-    };
-    out.push_back(std::move(selectedChannelField));
-  }
-}
 
 /**
  * @brief Initialize the available render modes for the DTI volume.
@@ -352,7 +277,6 @@ void DTIVolume::InitializeRenderModes()
   if (channelSliceShader && channelSliceShader->ID != 0)
   {
     (*channelSliceShader)["shader.sliceZ"] = 0.5f;
-    channelSliceShader->SetUniformUiFloatRange("shader.sliceZ", 0.0f, 1.0f, 0.001f);
     renderModes.push_back(RenderMode{"Channel Slice", channelSliceShader});
   }
 
@@ -364,9 +288,7 @@ void DTIVolume::InitializeRenderModes()
   if (principalDirectionShader && principalDirectionShader->ID != 0)
   {
     (*principalDirectionShader)["shader.sliceZ"] = 0.5f;
-    principalDirectionShader->SetUniformUiFloatRange("shader.sliceZ", 0.0f, 1.0f, 0.001f);
     (*principalDirectionShader)["shader.density"] = 1.0f;
-    principalDirectionShader->SetUniformUiFloatRange("shader.density", 0.0f, 20.0f, 0.01f);
     renderModes.push_back(RenderMode{"Principal EV RGB", principalDirectionShader});
   }
 
@@ -378,13 +300,9 @@ void DTIVolume::InitializeRenderModes()
   if (faRaymarchShader && faRaymarchShader->ID != 0)
   {
     (*faRaymarchShader)["shader.threshold"] = 0.15f;
-    faRaymarchShader->SetUniformUiFloatRange("shader.threshold", 0.0f, 1.0f, 0.001f);
     (*faRaymarchShader)["shader.density"] = 1.0f;
-    faRaymarchShader->SetUniformUiFloatRange("shader.density", 0.0f, 20.0f, 0.01f);
     (*faRaymarchShader)["shader.stepSize"] = 0.0f;
-    faRaymarchShader->SetUniformUiFloatRange("shader.stepSize", 0.0f, 0.1f, 0.0005f);
     (*faRaymarchShader)["shader.maxSteps"] = 512;
-    faRaymarchShader->SetUniformUiIntRange("shader.maxSteps", 1, 2048);
     renderModes.push_back(RenderMode{"FA 3D Raymarch", faRaymarchShader});
   }
 
@@ -396,13 +314,9 @@ void DTIVolume::InitializeRenderModes()
   if (directionRaymarchShader && directionRaymarchShader->ID != 0)
   {
     (*directionRaymarchShader)["shader.threshold"] = 0.15f;
-    directionRaymarchShader->SetUniformUiFloatRange("shader.threshold", 0.0f, 1.0f, 0.001f);
     (*directionRaymarchShader)["shader.density"] = 1.0f;
-    directionRaymarchShader->SetUniformUiFloatRange("shader.density", 0.0f, 20.0f, 0.01f);
     (*directionRaymarchShader)["shader.stepSize"] = 0.0005f;
-    directionRaymarchShader->SetUniformUiFloatRange("shader.stepSize", 0.0005f, 0.1f, 0.0005f);
     (*directionRaymarchShader)["shader.maxSteps"] = 512;
-    directionRaymarchShader->SetUniformUiIntRange("shader.maxSteps", 1, 2048);
     renderModes.push_back(RenderMode{"Direction 3D Raymarch", directionRaymarchShader});
   }
 
@@ -414,21 +328,13 @@ void DTIVolume::InitializeRenderModes()
   if (surfaceLitShader && surfaceLitShader->ID != 0)
   {
     (*surfaceLitShader)["shader.threshold"] = 0.1f;
-    surfaceLitShader->SetUniformUiFloatRange("shader.threshold", 0.0f, 1.0f, 0.001f);
     (*surfaceLitShader)["shader.stepSize"] = 0.0f;
-    surfaceLitShader->SetUniformUiFloatRange("shader.stepSize", 0.0f, 0.1f, 0.0005f);
     (*surfaceLitShader)["shader.maxSteps"] = 200;
-    surfaceLitShader->SetUniformUiIntRange("shader.maxSteps", 1, 2048);
     (*surfaceLitShader)["shader.specularStrength"] = 0.5f;
-    surfaceLitShader->SetUniformUiFloatRange("shader.specularStrength", 0.0f, 2.0f, 0.01f);
     (*surfaceLitShader)["shader.shininess"] = 18.0f;
-    surfaceLitShader->SetUniformUiFloatRange("shader.shininess", 2.0f, 256.0f, 1.0f);
     (*surfaceLitShader)["shader.aoStrength"] = 0.85f;
-    surfaceLitShader->SetUniformUiFloatRange("shader.aoStrength", 0.0f, 2.0f, 0.01f);
     (*surfaceLitShader)["shader.aoRadius"] = 0.04f;
-    surfaceLitShader->SetUniformUiFloatRange("shader.aoRadius", 0.005f, 0.2f, 0.001f);
     (*surfaceLitShader)["shader.aoSamples"] = 8;
-    surfaceLitShader->SetUniformUiIntRange("shader.aoSamples", 1, 24);
     renderModes.push_back(RenderMode{"FA Surface Lit", surfaceLitShader});
   }
 

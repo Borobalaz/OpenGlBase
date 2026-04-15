@@ -36,7 +36,13 @@ Install required libraries for `x64-windows`:
 
 ```powershell
 cd C:\vcpkg
-.\vcpkg.exe install glm:x64-windows glfw3:x64-windows glad:x64-windows assimp:x64-windows stb:x64-windows imgui[docking-experimental,glfw-binding,opengl3-binding]:x64-windows
+.\vcpkg.exe install glm:x64-windows glad:x64-windows assimp:x64-windows stb:x64-windows
+```
+
+Install Qt 6 (MSVC 2022 64-bit) through the Qt Online Installer and set `QT_ROOT` to your installation, for example:
+
+```powershell
+$env:QT_ROOT="C:/Qt/6.11.0/msvc2022_64"
 ```
 
 ### 3. Toolchain and Dependency Notes
@@ -45,10 +51,9 @@ cd C:\vcpkg
 
 - `OpenGL`
 - `glm`
-- `glfw3`
 - `glad`
 - `assimp`
-- `imgui` (with `docking-experimental`, `glfw-binding`, and `opengl3-binding` features)
+- `Qt6` (`Core`, `Gui`, `OpenGL`, `OpenGLWidgets`)
 - `stb_image.h` (provided by vcpkg package `stb`)
 - Optional: `ITK` for broad medical volume format support (NIfTI, NRRD, MetaImage, Analyze, DICOM series)
 
@@ -95,14 +100,14 @@ cmake --build build --config Release
 
 ### Build-Time Discovery Overrides
 
-If your data is not organized in subject/session folders, pass explicit paths directly through `DtiVolumeScene::LoadDataset(...)` from `main.cpp`.
+If your data is not organized in subject/session folders, pass explicit paths directly through `DtiVolumeScene::LoadDataset(...)` from `src/app/main.cpp`.
 
 ## Output
 
 Expected executable path:
 
 ```text
-build/Release/app.exe
+build/Release/app_qt.exe
 ```
 
 ## Volume File Support
@@ -321,136 +326,12 @@ Volume o-- Shader : shader
 Volume o-- Geometry : volumeGeometry
 ```
 
-### GUI Layer
+### Qt Host
 
-This diagram documents the ImGui-facing architecture: `GuiRoot` orchestration, panel registration/rendering, widget dispatch, and how GUI context bridges scene state, framebuffer output, and movement controls.
+The application is now hosted by a barebones Qt OpenGL window (`QOpenGLWindow`) that drives `Scene::Update` and `Scene::Render` directly.
 
-Source: [docs/gui-layer-class-diagram.mmd](docs/gui-layer-class-diagram.mmd)
-
-```mermaid
-classDiagram
-	class GuiRoot {
-		-PanelRegistry panelRegistry
-		-SceneFramebuffer sceneFramebuffer
-		+Render(scene, deltaTime, windowFramebufferWidth, windowFramebufferHeight, movement) void
-		+Destroy() void
-	}
-
-	class PanelRegistry {
-		-vector~unique_ptr~GUIPanel~~ panels
-		+RegisterPanel(panel) void
-		+IsEmpty() bool
-		+RenderAll(context) void
-	}
-
-	class GUIPanel {
-		<<interface>>
-		+Render(context: GuiRenderContext&) void
-	}
-
-	class RuntimeControlsPanel {
-		-GuiTheme theme
-		-unordered_map~UiFieldKind, unique_ptr~IWidget~~ widgets
-		+Render(context) void
-	}
-
-	class ScenePanel {
-		+Render(context) void
-	}
-
-	class GuiRenderContext {
-		+Scene& scene
-		+float deltaTime
-		+SceneFramebuffer* sceneFramebuffer
-		+int windowFramebufferWidth
-		+int windowFramebufferHeight
-		+BaseMovement* movement
-	}
-
-	class SceneFramebuffer {
-		+GLuint framebuffer
-		+GLuint colorTexture
-		+GLuint depthStencilRenderbuffer
-		+int width
-		+int height
-		+EnsureSize(newWidth, newHeight) void
-		+Destroy() void
-		+GetImGuiTextureId() ImTextureID
-	}
-
-	class IInspectable {
-		<<interface>>
-		+CollectInspectableFields(out, groupPrefix) void
-		+CollectInspectableNodes(out, nodePrefix) void
-	}
-
-	class InspectableNode {
-		+string nodeLabel
-		+bool isField
-		+UiField field
-		+shared_ptr~IInspectable~ nestedInspectable
-	}
-
-	class IWidget {
-		<<interface>>
-		+Render(field: UiField, value: UiFieldValue) const bool
-	}
-
-	class BoolFieldWidget
-	class IntFieldWidget
-	class FloatFieldWidget
-	class Vec3FieldWidget
-	class Color3FieldWidget
-
-	class GuiTheme {
-		+GetNodeHeaderStyle() const NodeHeaderStyle&
-		+SetNodeHeaderStyle(style: const NodeHeaderStyle&) void
-	}
-
-	class Scene {
-		<<external>>
-	}
-
-	class BaseMovement {
-		<<external>>
-	}
-
-	class InspectionMovement {
-		<<external>>
-	}
-
-	GUIPanel <|-- RuntimeControlsPanel
-	GUIPanel <|-- ScenePanel
-
-	GuiRoot *-- PanelRegistry
-	GuiRoot *-- SceneFramebuffer
-
-	PanelRegistry *-- GUIPanel : owns panels
-	PanelRegistry ..> GuiRenderContext : renders with
-
-	RuntimeControlsPanel *-- GuiTheme
-	RuntimeControlsPanel *-- IWidget : owns widget instances
-	RuntimeControlsPanel ..> Scene : inspects
-
-	ScenePanel ..> GuiRenderContext
-	ScenePanel ..> SceneFramebuffer
-	ScenePanel ..> Scene : render target
-	ScenePanel ..> BaseMovement
-	ScenePanel ..> InspectionMovement : dynamic_cast
-
-	InspectableNode o-- IInspectable : nestedInspectable
-	RuntimeControlsPanel ..> InspectableNode
-
-	IWidget <|-- BoolFieldWidget
-	IWidget <|-- IntFieldWidget
-	IWidget <|-- FloatFieldWidget
-	IWidget <|-- Vec3FieldWidget
-	IWidget <|-- Color3FieldWidget
-
-	GuiRenderContext ..> Scene
-	GuiRenderContext ..> SceneFramebuffer
-	GuiRenderContext ..> BaseMovement
-```
+Entry point: `src/app/main.cpp`
+Window/runtime integration: `src/ui/qt-adapters/QtSceneWindow.cpp`
 
 ### Uniform Provider System
 
@@ -706,67 +587,9 @@ MriPreprocessingRunner ..> MriToDtiPreprocessor : uses in Run
 
 ## Sequence Diagrams
 
-### Application Frame and GUI Render Loop
+### Application Frame Loop (Qt)
 
-This diagram shows one full UI frame from the main loop through `GuiRoot`, panel rendering, scene-to-framebuffer rendering, and final ImGui draw submission.
-
-Source: [docs/app-frame-sequence-diagram.mmd](docs/app-frame-sequence-diagram.mmd)
-
-```mermaid
-sequenceDiagram
-	autonumber
-	participant Main as main loop
-	participant ImGui as ImGui
-	participant Gui as GuiRoot
-	participant Registry as PanelRegistry
-	participant Runtime as RuntimeControlsPanel
-	participant ScenePanel as ScenePanel
-	participant Move as InspectionMovement
-	participant FB as SceneFramebuffer
-	participant Scene as Scene
-	participant GL as OpenGL
-
-	loop while !glfwWindowShouldClose
-		Main->>Main: compute deltaTime
-		Main->>Main: glfwGetFramebufferSize(window)
-
-		Main->>ImGui: ImGui_ImplOpenGL3_NewFrame()
-		Main->>ImGui: ImGui_ImplGlfw_NewFrame()
-		Main->>ImGui: ImGui::NewFrame()
-		Main->>ImGui: DockSpaceOverViewport(...)
-
-		Main->>Gui: Render(scene, deltaTime, framebufferWidth, framebufferHeight, movement)
-		Gui->>Registry: RenderAll(context)
-
-		Registry->>Runtime: Render(context)
-		Runtime->>ImGui: Begin("Runtime Controls")
-		Runtime->>Scene: CollectInspectableNodes(nodes)
-		Runtime->>ImGui: draw controls + FPS
-		Runtime->>ImGui: End()
-
-		Registry->>ScenePanel: Render(context)
-		ScenePanel->>ImGui: Begin("Scene")
-		alt movement is InspectionMovement
-			ScenePanel->>Move: SetInputEnabled(IsWindowFocused())
-		end
-		ScenePanel->>FB: EnsureSize(targetSceneWidth, targetSceneHeight)
-		ScenePanel->>Scene: Update(deltaTime)
-		ScenePanel->>GL: glBindFramebuffer(sceneFramebuffer.framebuffer)
-		ScenePanel->>GL: glViewport(scene framebuffer size)
-		ScenePanel->>Scene: SetCameraAspect(width / height)
-		ScenePanel->>Scene: Render()
-		ScenePanel->>GL: glBindFramebuffer(0)
-		ScenePanel->>GL: glViewport(window framebuffer size)
-		ScenePanel->>GL: glClear(GL_COLOR_BUFFER_BIT)
-		ScenePanel->>ImGui: Image(sceneFramebuffer texture)
-		ScenePanel->>ImGui: End()
-
-		Main->>ImGui: ImGui::Render()
-		Main->>ImGui: ImGui_ImplOpenGL3_RenderDrawData()
-		Main->>Main: glfwSwapBuffers(window)
-		Main->>Main: glfwPollEvents()
-	end
-```
+The render loop is driven by Qt timer updates in `QtSceneWindow` and no longer relies on GLFW/ImGui frame orchestration.
 
 ### Scene Render Sequence
 

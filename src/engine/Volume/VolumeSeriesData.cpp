@@ -1,4 +1,4 @@
-#include "VolumeSeriesData.h"
+#include "Volume/VolumeSeriesData.h"
 
 #include <algorithm>
 #include <cstddef>

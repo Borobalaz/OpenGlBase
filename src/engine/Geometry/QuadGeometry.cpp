@@ -1,4 +1,4 @@
-#include "QuadGeometry.h"
+#include "Geometry/QuadGeometry.h"
 
 QuadGeometry::QuadGeometry() 
 {

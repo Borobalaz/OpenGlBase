@@ -1,4 +1,4 @@
-#include "CompositeUniformProvider.h"
+#include "Uniform/CompositeUniformProvider.h"
 
 void CompositeUniformProvider::AddProvider(const UniformProvider& provider)
 {

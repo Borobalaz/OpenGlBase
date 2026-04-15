@@ -1,4 +1,4 @@
-#include "TextureCube.h"
+#include "Texture/TextureCube.h"
 
 #include <array>
 #include <iostream>

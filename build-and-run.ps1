@@ -1,4 +1,4 @@
-# Build and run script (convenience wrapper)
+# Build and run script (Qt host convenience wrapper)
 # Usage: .\build-and-run.ps1 [Debug|Release]
 
 param(

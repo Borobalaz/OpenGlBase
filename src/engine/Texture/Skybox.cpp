@@ -1,4 +1,4 @@
-#include "Skybox.h"
+#include "Texture/Skybox.h"
 
 #include <glm/glm.hpp>
 

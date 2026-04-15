@@ -1,4 +1,4 @@
-#include "ModelLoader.h"
+#include "Geometry/ModelLoader.h"
 
 #include <filesystem>
 #include <iostream>
@@ -11,10 +11,10 @@
 
 #include <glm/glm.hpp>
 
-#include "ImportedGeometry.h"
+#include "Geometry/ImportedGeometry.h"
 #include "Material.h"
 #include "Mesh.h"
-#include "Texture2D.h"
+#include "Texture/Texture2D.h"
 
 namespace
 {

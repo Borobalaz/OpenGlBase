@@ -2,14 +2,13 @@
 #include <algorithm>
 
 #include "Mesh.h"
-#include "ModelLoader.h"
-#include "Skybox.h"
-#include "Texture2D.h"
-#include "FloatVolume.h"
-#include "VolumeFileLoader.h"
+#include "Geometry/ModelLoader.h"
+#include "Texture/Skybox.h"
+#include "Texture/Texture2D.h"
+#include "Volume/FloatVolume.h"
+#include "Volume/VolumeFileLoader.h"
 
-#include <GLFW/glfw3.h>
-
+#include <chrono>
 #include <cmath>
 #include <iostream>
 
@@ -18,6 +17,14 @@
 namespace
 {
   constexpr int kMaxLights = 16;
+
+  float SceneElapsedSeconds()
+  {
+    static const auto startTime = std::chrono::steady_clock::now();
+    const auto now = std::chrono::steady_clock::now();
+    const auto elapsed = now - startTime;
+    return std::chrono::duration<float>(elapsed).count();
+  }
 
   VolumeData CreateSeedVolumeData(int width, int height, int depth)
   {
@@ -105,16 +112,6 @@ Scene::Scene()
   (*mandelbulbVolumeShader)["fractalOffset"] = glm::vec3(0.0f, 0.0f, 0.0f);
   (*mandelbulbVolumeShader)["baseColor"] = glm::vec3(0.95f, 0.55f, 0.3f);
 
-  mandelbulbVolumeShader->SetUniformUiFloatRange("power", 0.0f, 30.0f, 0.001f);
-  mandelbulbVolumeShader->SetUniformUiFloatRange("bailout", 2.0f, 16.0f, 0.1f);
-  mandelbulbVolumeShader->SetUniformUiFloatRange("hitEpsilon", 0.03f, 0.5f, 0.001f);
-  mandelbulbVolumeShader->SetUniformUiFloatRange("maxDistance", 0.5f, 8.0f, 0.05f);
-  mandelbulbVolumeShader->SetUniformUiFloatRange("stepScale", 0.2f, 1.0f, 0.01f);
-  mandelbulbVolumeShader->SetUniformUiFloatRange("fractalScale", 0.5f, 8.0f, 0.05f);
-  mandelbulbVolumeShader->SetUniformUiFloatRange("animationSpeed", 0.001f, 1.0f, 0.001f);
-  mandelbulbVolumeShader->SetUniformUiIntRange("maxSteps", 16, 512);
-  mandelbulbVolumeShader->SetUniformUiIntRange("renderMode", 0, 1);
-
   volumes.push_back(mandelbulbVolume);
 }
 
@@ -155,7 +152,7 @@ void Scene::Update(float deltaTime)
     {
       const float radius = 2.0f;
       const float speed = 0.5f; // radians per second
-      const float angle = static_cast<float>(glfwGetTime()) * speed;
+      const float angle = SceneElapsedSeconds() * speed;
       pointLight->position =
         glm::vec3(std::cos(angle) * radius, 0.0f, std::sin(angle) * radius);
     }
@@ -167,7 +164,7 @@ void Scene::Update(float deltaTime)
     {
       if (std::shared_ptr<Shader> shader = volume->getShader())
       {
-        (*shader)["time"] = static_cast<float>(glfwGetTime());
+        (*shader)["time"] = SceneElapsedSeconds();
       }
     }
   }
@@ -392,126 +389,6 @@ void Scene::SetCameraAspect(float aspect)
   if (camera)
   {
     camera->SetAspect(aspect);
-  }
-}
-
-/**
- * @brief Collect inspectable fields for the scene
- * 
- * @param out The vector to store the inspectable fields
- */
-void Scene::CollectInspectableFields(std::vector<UiField>& out, const std::string& groupPrefix)
-{
-  const std::string prefix = groupPrefix.empty() ? "" : (groupPrefix + "/");
-
-  for (auto& [shaderName, shader] : shaders)
-  {
-    if (!shader)
-    {
-      continue;
-    }
-
-    shader->CollectInspectableFields(out, prefix + "Shader/" + shaderName);
-  }
-
-  for (size_t i = 0; i < volumes.size(); ++i)
-  {
-    if (!volumes[i])
-    {
-      continue;
-    }
-
-    volumes[i]->CollectInspectableFields(out, prefix + "Volume/" + std::to_string(i));
-  }
-
-  for (size_t i = 0; i < gameObjects.size(); ++i)
-  {
-    if (!gameObjects[i])
-    {
-      continue;
-    }
-
-    gameObjects[i]->CollectInspectableFields(out, prefix + "GameObject/" + std::to_string(i));
-  }
-
-  for (size_t i = 0; i < lights.size(); ++i)
-  {
-    if (!lights[i])
-    {
-      continue;
-    }
-
-    lights[i]->CollectInspectableFields(out, prefix + "Light/" + std::to_string(i));
-  }
-}
-
-/**
- * @brief Collect inspectable nodes for the scene
- * 
- * @param out The vector to store the inspectable nodes
- */
-void Scene::CollectInspectableNodes(std::vector<InspectableNode>& out, const std::string& nodePrefix)
-{
-  const std::string prefix = nodePrefix.empty() ? "" : (nodePrefix + "/");
-
-  // Collect shaders as nested nodes
-  for (auto& [shaderName, shader] : shaders)
-  {
-    if (!shader)
-    {
-      continue;
-    }
-
-    InspectableNode node;
-    node.nodeLabel = prefix + "Shader/" + shaderName;
-    node.isField = false;
-    node.nestedInspectable = std::static_pointer_cast<IInspectable>(shader);
-    out.push_back(node);
-  }
-
-  // Collect volumes as nested nodes
-  for (size_t i = 0; i < volumes.size(); ++i)
-  {
-    if (!volumes[i])
-    {
-      continue;
-    }
-
-    InspectableNode node;
-    node.nodeLabel = prefix + "Volume/" + std::to_string(i);
-    node.isField = false;
-    node.nestedInspectable = std::static_pointer_cast<IInspectable>(volumes[i]);
-    out.push_back(node);
-  }
-
-  // Collect game objects as nested nodes
-  for (size_t i = 0; i < gameObjects.size(); ++i)
-  {
-    if (!gameObjects[i])
-    {
-      continue;
-    }
-
-    InspectableNode node;
-    node.nodeLabel = prefix + "GameObject/" + std::to_string(i);
-    node.isField = false;
-    node.nestedInspectable = std::static_pointer_cast<IInspectable>(gameObjects[i]);
-    out.push_back(node);
-  }
-
-  // Collect lights as nested nodes
-  for (size_t i = 0; i < lights.size(); ++i)
-  {
-    if (!lights[i])
-    {
-      continue;
-    }
-
-    InspectableNode node;
-    node.nodeLabel = prefix + "Light/" + std::to_string(i);
-    node.isField = false;
-    node.nestedInspectable = std::static_pointer_cast<IInspectable>(lights[i]);
-    out.push_back(node);
   }
 }
 

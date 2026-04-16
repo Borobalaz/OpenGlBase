@@ -1,5 +1,6 @@
 #include "Scene/Scene.h"
 #include <algorithm>
+#include <string>
 
 #include "Mesh.h"
 #include "Geometry/ModelLoader.h"
@@ -43,32 +44,19 @@ namespace
  */
 Scene::Scene()
   : clearColor{1.0f, 1.0f, 1.0f, 1.0f},
-    camera(std::make_shared<PerspectiveCamera>(45.0f, 800.0f / 600.0f, 0.1f, 100.0f)),
-    matrixTestUniformValue(0.5f, 0.5f, 0.5f)
+    camera(std::make_shared<PerspectiveCamera>(45.0f, 800.0f / 600.0f, 0.1f, 100.0f))
 {
-
   // ------------- SHADERS -------------
-
 
   // ------------- MATERIALS -------------
 
   // ------------- GAME OBJECTS -------------
-  //const std::shared_ptr<GameObject> importedModel =
-  //  ModelLoader::LoadGameObject("assets/models/assasin.fbx", basicShader);
-  //if (importedModel)
-  //{
-  //  importedModel->position = glm::vec3(0.0f, 0.0f, 0.0f);
-  //  importedModel->scale = glm::vec3(1.0f, 1.0f, 1.0f);
-  //  importedModel->rotation = glm::vec3(-glm::half_pi<float>(), 0.0f, -glm::half_pi<float>());
-  //  gameObjects.push_back(importedModel);
-  //}
-  //else
-  //{
-  //  //std::cout << "Failed to load model\n";
-  //}
+  
+  // ------------- VOLUME -------------
 
   // ------------- LIGHTS -------------
-  lights.push_back(std::make_shared<PointLight>(PointLight(
+  std::shared_ptr<PointLight> light0 = std::make_shared<PointLight>(PointLight(
+    "point_0",
     glm::vec3(0.0f, 0.0f, 2.0f),
     glm::vec3(1.0f, 0.08f, 0.08f),
     glm::vec3(0.9f, 0.9f, 0.9f),
@@ -76,43 +64,19 @@ Scene::Scene()
     1.0f,
     0.09f,
     0.032f
-  )));
+  ));
+  AddLight(light0);
+  AddInspectProvider(light0);
 
-  lights.push_back(std::make_shared<DirectionalLight>(DirectionalLight(
+  std::shared_ptr<DirectionalLight> light1 = std::make_shared<DirectionalLight>(DirectionalLight(
+    "directional_0",
     glm::vec3(-0.2f, -1.0f, -0.3f),
     glm::vec3(0.05f, 0.05f, 0.05f),
     glm::vec3(0.45f, 0.45f, 0.45f),
     glm::vec3(0.35f, 0.35f, 0.35f)
-  )));
-
-  // ------------- VOLUME -------------
-  std::shared_ptr<Shader> mandelbulbVolumeShader = std::make_shared<Shader>(
-    "shaders/volume_vertex.glsl",
-    "shaders/mandelbulb_fragment.glsl"
-  );
-
-  std::shared_ptr<Volume> mandelbulbVolume = std::make_shared<FloatVolume>(
-    CreateSeedVolumeData(8, 8, 8),
-    mandelbulbVolumeShader
-  );
-  mandelbulbVolume->SetPosition(glm::vec3(0.0f, 0.0f, 0.0f));
-  mandelbulbVolume->SetScale(glm::vec3(1.5f, 1.5f, 1.5f));
-
-  (*mandelbulbVolumeShader)["power"] = 8.0f;
-  (*mandelbulbVolumeShader)["bailout"] = 8.0f;
-  (*mandelbulbVolumeShader)["hitEpsilon"] = 0.0012f;
-  (*mandelbulbVolumeShader)["maxDistance"] = 4.0f;
-  (*mandelbulbVolumeShader)["stepScale"] = 0.75f;
-  (*mandelbulbVolumeShader)["fractalScale"] = 3.2f;
-  (*mandelbulbVolumeShader)["time"] = 0.0f;
-  (*mandelbulbVolumeShader)["animationSpeed"] = 0.150f;
-  (*mandelbulbVolumeShader)["maxSteps"] = 256;
-  (*mandelbulbVolumeShader)["renderMode"] = 0;
-  (*mandelbulbVolumeShader)["animateBulb"] = false;
-  (*mandelbulbVolumeShader)["fractalOffset"] = glm::vec3(0.0f, 0.0f, 0.0f);
-  (*mandelbulbVolumeShader)["baseColor"] = glm::vec3(0.95f, 0.55f, 0.3f);
-
-  volumes.push_back(mandelbulbVolume);
+  ));
+  AddLight(light1);
+  AddInspectProvider(light1);
 }
 
 /**
@@ -183,7 +147,11 @@ void Scene::Apply(Shader& shader) const
   }
 
   const int enabledCount = static_cast<int>(std::count_if(lights.begin(), lights.end(),
-    [](const std::shared_ptr<Light>& light) { return light && light->GetEnabled(); }));
+    [](const auto& lightEntry)
+    {
+      const std::shared_ptr<Light>& light = lightEntry;
+      return light && light->GetEnabled();
+    }));
   const int lightCount = static_cast<int>(std::min(enabledCount, kMaxLights));
   shader.SetInt("lightCount", lightCount);
 }
@@ -204,8 +172,28 @@ void Scene::Render()
   
   // Count active lights
   const int enabledCount = static_cast<int>(std::count_if(lights.begin(), lights.end(),
-    [](const std::shared_ptr<Light>& light) { return light && light->GetEnabled(); }));
+    [](const auto& lightEntry)
+    {
+      const std::shared_ptr<Light>& light = lightEntry;
+      return light && light->GetEnabled();
+    }));
   const int lightCount = static_cast<int>(std::min(enabledCount, kMaxLights));
+
+  std::vector<std::shared_ptr<Light>> enabledLights;
+  enabledLights.reserve(static_cast<size_t>(lightCount));
+  for (const auto& light : lights)
+  {
+    if (!light || !light->GetEnabled())
+    {
+      continue;
+    }
+
+    enabledLights.push_back(light);
+    if (static_cast<int>(enabledLights.size()) >= lightCount)
+    {
+      break;
+    }
+  }
 
   // Set up frame uniforms
   frameUniforms.ClearProviders();
@@ -214,16 +202,19 @@ void Scene::Render()
   {
     frameUniforms.AddProvider(*camera);
   }
-  for (int i = 0; i < lightCount; ++i)
+  for (int i = 0; i < static_cast<int>(enabledLights.size()); ++i)
   {
-    lights[static_cast<size_t>(i)]->SetUniformIndex(i);
-    frameUniforms.AddProvider(*lights[static_cast<size_t>(i)]);
+    enabledLights[static_cast<size_t>(i)]->SetUniformIndex(i);
+    frameUniforms.AddProvider(*enabledLights[static_cast<size_t>(i)]);
   }
 
   // Draw game objects
   for (const auto& gameObject : gameObjects)
   {
-    gameObject->Draw(frameUniforms);
+    if (gameObject)
+    {
+      gameObject->Draw(frameUniforms);
+    }
   }
 
   // Draw skybox
@@ -281,72 +272,6 @@ void Scene::ClearSkybox()
 }
 
 /**
- * @brief Add a light to the scene
- * 
- * @param light The light to add
- */
-void Scene::AddLight(std::shared_ptr<Light> light)
-{
-  if (light)
-  {
-    lights.push_back(std::move(light));
-  }
-}
-
-/**
- * @brief Clear all lights from the scene
- * 
- */
-void Scene::ClearLights()
-{
-  lights.clear();
-}
-
-/**
- * @brief Add a game object to the scene
- * 
- * @param gameObject The game object to add
- */
-void Scene::AddGameObject(std::shared_ptr<GameObject> gameObject)
-{
-  if (gameObject)
-  {
-    gameObjects.push_back(std::move(gameObject));
-  }
-}
-
-/**
- * @brief Clear all game objects from the scene
- * 
- */
-void Scene::ClearGameObjects()
-{
-  gameObjects.clear();
-}
-
-/**
- * @brief Add a volume to the scene
- * 
- * @param volume The volume to add
- */
-void Scene::AddVolume(std::shared_ptr<Volume> volume)
-{
-  if (volume)
-  {
-    volumes.push_back(std::move(volume));
-  }
-}
-
-/**
- * @brief Clear all volumes from the scene
- * 
- */
-void Scene::ClearVolumes()
-{
-  volumes.clear();
-}
-
-/**
  * @brief Register a shader with the scene for hot reload tracking
  * 
  * @param name The identifier name for this shader
@@ -354,10 +279,21 @@ void Scene::ClearVolumes()
  */
 void Scene::RegisterShader(const std::string& name, std::shared_ptr<Shader> shader)
 {
-  if (shader)
+  if (!shader)
   {
-    shaders[name] = shader;
+    return;
   }
+
+  for (auto& registeredShader : shaders)
+  {
+    if (registeredShader && registeredShader->GetId() == name)
+    {
+      registeredShader = std::move(shader);
+      return;
+    }
+  }
+
+  shaders.emplace_back(std::move(shader));
 }
 
 /**
@@ -366,23 +302,13 @@ void Scene::RegisterShader(const std::string& name, std::shared_ptr<Shader> shad
  */
 void Scene::ReloadShadersIfChanged()
 {
-  for (auto& [name, shader] : shaders)
+  for (auto& shader : shaders)
   {
     if (shader && shader->ReloadIfChanged())
     {
       // Shader was reloaded successfully
     }
   }
-}
-
-/**
- * @brief Get a reference to the scene's camera
- * 
- * @return Camera& 
- */
-std::shared_ptr<Camera> Scene::GetCamera()
-{
-  return camera;
 }
 
 /**

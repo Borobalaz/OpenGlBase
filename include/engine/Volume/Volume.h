@@ -11,8 +11,9 @@
 #include "Volume/VolumeData.h"
 #include "Geometry/VolumeGeometry.h"
 #include "Volume/VolumeTextureSet.h"
+#include "ui/mediator/InspectProvider.h"
 
-class Volume : public UniformProvider, public IDrawable
+class Volume : public UniformProvider, public IDrawable, public InspectProvider
 {
 public:
   virtual ~Volume() = default;
@@ -20,6 +21,8 @@ public:
   void Apply(Shader &shader) const override;
   void Draw(const UniformProvider &frameUniforms) const override;
   bool IsValid() const;
+  std::string GetInspectDisplayName() const override;
+  std::vector<std::shared_ptr<InspectField>> GetInspectFields() override;
 
   const std::shared_ptr<Shader> &getShader() const { return shader; }
   const VolumeTextureSet &GetTextureSet() const { return textureSet; }
@@ -32,8 +35,14 @@ public:
   void SetPosition(const glm::vec3 &newPosition) { position = newPosition; }
   void SetRotation(const glm::vec3 &newRotation) { rotation = newRotation; }
   void SetScale(const glm::vec3 &newScale) { scale = newScale; }
+  bool IsVisible() const { return visible; }
+  void SetVisible(bool newVisible) { visible = newVisible; }
+  const std::string &GetId() const { return id; }
 
 private:
+  const std::string id;
+  bool visible = true;
+
   // Transform properties
   glm::vec3 position{0.0f, 0.0f, 0.0f};
   glm::vec3 rotation{0.0f, 0.0f, 0.0f};
@@ -51,7 +60,8 @@ protected:
   // Only derived classes can construct Volume. 
   // The reason is that only derived classes can be instantiated, 
   //  and in their constructors they have to populate the textureSet with their own data.  
-    Volume(const glm::ivec3 &dimensions,
+    Volume(const std::string &id,
+      const glm::ivec3 &dimensions,
       const glm::vec3 &spacing,
       std::shared_ptr<Shader> shader);
 

@@ -107,8 +107,12 @@ Shader::UniformSlotProxy& Shader::UniformSlotProxy::operator=(const glm::mat4& v
  * @param vertexPath 
  * @param fragmentPath 
  */
-Shader::Shader(const std::string& vertexPath, const std::string& fragmentPath)
-  : vertexPath(vertexPath), fragmentPath(fragmentPath)
+Shader::Shader(const std::string& id,
+               const std::string& vertexPath,
+               const std::string& fragmentPath)
+  : vertexPath(vertexPath),
+    fragmentPath(fragmentPath),
+    id(id)
 {
   std::string vertexCode = ReadFile(vertexPath);
   std::string fragmentCode = ReadFile(fragmentPath);

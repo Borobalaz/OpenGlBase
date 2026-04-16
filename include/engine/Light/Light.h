@@ -1,10 +1,15 @@
 #pragma once
 
+#include <string>
+#include <vector>
+
 #include <glm/glm.hpp>
 
 #include "Uniform/UniformProvider.h"
+#include "ui/mediator/InspectProvider.h"
+#include "ui/mediator/InspectField.h"
 
-class Light : public UniformProvider
+class Light : public UniformProvider, public InspectProvider
 {
 public:
   enum class Type
@@ -13,8 +18,8 @@ public:
     Directional = 1
   };
 
-  Light();
-  Light(const glm::vec3& ambient,
+  Light(const std::string& id,
+        const glm::vec3& ambient,
         const glm::vec3& diffuse,
         const glm::vec3& specular);
   virtual ~Light() = default;
@@ -23,8 +28,12 @@ public:
   int GetUniformIndex() const;
   void Apply(Shader& shader) const override;
 
+  std::string GetInspectDisplayName() const override;
+  std::vector<std::shared_ptr<InspectField>> GetInspectFields() override;
+
   void SetEnabled(bool isEnabled) { enabled = isEnabled; }
   bool GetEnabled() const { return enabled; }
+  const std::string& GetId() const { return id; }
 
   glm::vec3 ambient;
   glm::vec3 diffuse;
@@ -33,22 +42,7 @@ public:
 protected:
   int uniformIndex;
   bool enabled = true;
+
+private:
+  const std::string id;
 };
-
-inline Light::Light()
-  : ambient(0.05f, 0.05f, 0.05f),
-    diffuse(1.0f, 1.0f, 1.0f),
-    specular(1.0f, 1.0f, 1.0f),
-    uniformIndex(-1)
-{
-}
-
-inline Light::Light(const glm::vec3& ambient,
-                    const glm::vec3& diffuse,
-                    const glm::vec3& specular)
-  : ambient(ambient),
-    diffuse(diffuse),
-  specular(specular),
-  uniformIndex(-1)
-{
-}

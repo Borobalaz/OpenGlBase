@@ -4,6 +4,38 @@
 
 #include "Shader.h"
 
+/**
+ * @brief Construct a new Point Light:: Point Light object
+ * 
+ * @param position 
+ * @param ambient 
+ * @param diffuse 
+ * @param specular 
+ * @param constant 
+ * @param linear 
+ * @param quadratic 
+ */
+PointLight::PointLight(const std::string& id,
+                              const glm::vec3& position,
+                              const glm::vec3& ambient,
+                              const glm::vec3& diffuse,
+                              const glm::vec3& specular,
+                              float constant,
+                              float linear,
+                              float quadratic)
+  : Light(id, ambient, diffuse, specular),
+    position(position),
+    constant(constant),
+    linear(linear),
+    quadratic(quadratic)
+{
+}
+
+/**
+ * @brief 
+ * 
+ * @param shader 
+ */
 void PointLight::Apply(Shader& shader) const
 {
   if (uniformIndex < 0 || !enabled)

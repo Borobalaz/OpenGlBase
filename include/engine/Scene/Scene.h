@@ -2,6 +2,7 @@
 #include <unordered_map>
 #include <vector>
 #include <map>
+#include <string>
 
 #include "Geometry/Triangle.h"
 #include "Geometry/QuadGeometry.h"
@@ -17,6 +18,7 @@
 #include "Texture/TextureCube.h"
 #include "Uniform/UniformProvider.h"
 #include "Volume/Volume.h"
+#include "ui/mediator/InspectProvider.h"
 #include <memory>
 
 class Shader;
@@ -43,18 +45,20 @@ public:
   void ClearSkybox();
 
   // Camera management
-  std::shared_ptr<Camera> GetCamera();
+  std::shared_ptr<Camera> GetCamera() { return camera; }
   void SetCameraAspect(float aspect);
 
   // Scene content management
-  void AddLight(std::shared_ptr<Light> light);
-  void ClearLights();
+  void AddLight(std::shared_ptr<Light> light) { lights.push_back(light); }
+  void ClearLights()  { lights.clear(); }
 
-  void AddGameObject(std::shared_ptr<GameObject> gameObject);
-  void ClearGameObjects();
+  void AddGameObject(std::shared_ptr<GameObject> gameObject) { gameObjects.push_back(gameObject); }
+  void ClearGameObjects() { gameObjects.clear(); }
 
-  void AddVolume(std::shared_ptr<Volume> volume);
-  void ClearVolumes();
+  void AddVolume(std::shared_ptr<Volume> volume) { volumes.push_back(volume); }
+  void ClearVolumes() { volumes.clear(); }
+
+  void AddInspectProvider(std::shared_ptr<InspectProvider> provider) { inspectProviders.push_back(provider.get()); }
 
   // Shader management
   void RegisterShader(const std::string& name, std::shared_ptr<Shader> shader);
@@ -62,7 +66,13 @@ public:
   // Hot reload: recheck all shader files and reload if changed
   void ReloadShadersIfChanged();
 
+  // Inspection provider discovery
+  std::vector<InspectProvider*> GetInspectProviders() const { return inspectProviders; }
+  std::vector<std::string> GetInspectProviderNames() const;
+
 private:
+  void RebuildInspectProviders();
+
   float clearColor[4];
 
   std::shared_ptr<Camera> camera;
@@ -73,7 +83,7 @@ private:
   std::vector<std::shared_ptr<Light>> lights;
   std::vector<std::shared_ptr<Volume>> volumes;
   std::vector<std::shared_ptr<GameObject>> gameObjects;
-  std::map<std::string, std::shared_ptr<Shader>> shaders;
+  std::vector<std::shared_ptr<Shader>> shaders;
 
-  glm::vec3 matrixTestUniformValue;
+  std::vector<InspectProvider*> inspectProviders;
 };

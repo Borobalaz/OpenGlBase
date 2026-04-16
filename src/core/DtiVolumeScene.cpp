@@ -1,4 +1,4 @@
-#include "Scene/DtiVolumeScene.h"
+#include "core/DtiVolumeScene.h"
 #include "Shader.h"
 #include "Texture/Skybox.h"
 #include "Light/PointLight.h"
@@ -68,26 +68,27 @@ bool DtiVolumeScene::LoadDataset(
 
     // Create DTI volume from processed channels with tensor-eigenvector shader
     std::shared_ptr<Shader> volumeShader = std::make_shared<Shader>(
+        "dti_volume_main_shader",
         "shaders/volume_vertex.glsl",
         "shaders/dti_fragment_shaders/volume_dti_tensor_fragment.glsl"
       );
     (*volumeShader)["shader.sliceZ"] = 0.5f;
     (*volumeShader)["shader.density"] = 1.0f;
     
-    dtiVolume = std::make_shared<DTIVolume>(result.channels, volumeShader);
+    dtiVolume = std::make_shared<DTIVolume>("dti_volume_main", result.channels, volumeShader);
     dtiVolume->SetRotation(glm::vec3(-90.0f / 180.0f * glm::pi<float>(), 0.0f, 0.0f));
 
-    // Add to scene for rendering
-    ClearVolumes();
-    //AddVolume(dtiVolume);
+    AddVolume(dtiVolume);
+    AddInspectProvider(dtiVolume);
 
     // Register shaders for hot reload tracking
     dtiVolume->RegisterShadersWithScene(this);
 
-    ClearGameObjects();
+    // FA surface mesh
     if (result.surfaceMesh)
     {
       std::shared_ptr<Shader> meshShader = std::make_shared<Shader>(
+          "dti_brain_surface_shader",
           "shaders/vertex.glsl",
           "shaders/fragment.glsl");
 
@@ -98,10 +99,11 @@ bool DtiVolumeScene::LoadDataset(
       meshMaterial->SetShininess(18.0f);
 
       result.surfaceMesh->SetMaterial(meshMaterial);
-      std::shared_ptr<GameObject> brainSurfaceObject = std::make_shared<GameObject>();
+      std::shared_ptr<GameObject> brainSurfaceObject = std::make_shared<GameObject>("dti_brain_surface");
       brainSurfaceObject->AddMesh(result.surfaceMesh);
-      brainSurfaceObject->SetRotation(glm::vec3(90.0f / 180.0f * glm::pi<float>(), 0.0f, 0.0f));
-      //AddGameObject(brainSurfaceObject);
+      brainSurfaceObject->SetRotation(glm::vec3(-90.0f / 180.0f * glm::pi<float>(), 0.0f, 0.0f));
+      AddGameObject(brainSurfaceObject);
+      AddInspectProvider(brainSurfaceObject);
     }
     else
     {
@@ -111,6 +113,7 @@ bool DtiVolumeScene::LoadDataset(
     if (result.streamlineMesh)
     {
       std::shared_ptr<Shader> streamlineShader = std::make_shared<Shader>(
+          "dti_streamline_shader",
           "shaders/streamline_vertex.glsl",
           "shaders/streamline_fragment.glsl");
 
@@ -121,10 +124,11 @@ bool DtiVolumeScene::LoadDataset(
       streamlineMaterial->SetShininess(1.0f);
 
       result.streamlineMesh->SetMaterial(streamlineMaterial);
-      std::shared_ptr<GameObject> streamlineObject = std::make_shared<GameObject>();
+      std::shared_ptr<GameObject> streamlineObject = std::make_shared<GameObject>("dti_streamlines");
       streamlineObject->AddMesh(result.streamlineMesh);
-      streamlineObject->SetRotation(glm::vec3(90.0f / 180.0f * glm::pi<float>(), 0.0f, 0.0f));
+      streamlineObject->SetRotation(glm::vec3(-90.0f / 180.0f * glm::pi<float>(), 0.0f, 0.0f));
       AddGameObject(streamlineObject);
+      AddInspectProvider(streamlineObject);
     }
     else
     {

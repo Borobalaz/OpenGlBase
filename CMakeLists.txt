@@ -16,7 +16,7 @@ find_package(OpenGL REQUIRED)
 find_package(glm CONFIG REQUIRED)
 find_package(glad CONFIG REQUIRED)
 find_package(assimp CONFIG REQUIRED)
-find_package(Qt6 REQUIRED COMPONENTS Core Gui OpenGL Qml Quick)
+find_package(Qt6 REQUIRED COMPONENTS Core Gui OpenGL OpenGLWidgets Widgets)
 find_package(ITK CONFIG QUIET COMPONENTS
     ITKCommon
     ITKIOImageBase
@@ -42,8 +42,18 @@ add_executable(app_qt
     ${SOURCES}
     ${QT_MAIN}
     ${QT_HOST_SOURCES}
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/ui/widgets/DTISceneWidget.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/resources/qml/qml.qrc
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/ui/widgets/DTIViewportWidget.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/ui/widgets/InspectorWidget.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/ui/widgets/SceneObjectListWidget.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/ui/widgets/WidgetsMainWindow.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/ui/qt-adapters/InspectQtAdapter.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/ui/mediator/InspectField.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/ui/mediator/InspectBoolField.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/ui/mediator/InspectNumericField.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/ui/mediator/InspectVec3Field.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/ui/mediator/InspectColorField.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/ui/mediator/InspectTextField.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/ui/mediator/InspectDropdownField.h
 )
 
 target_include_directories(app_qt PRIVATE
@@ -63,8 +73,8 @@ target_link_libraries(app_qt PRIVATE
     Qt6::Core
     Qt6::Gui
     Qt6::OpenGL
-    Qt6::Qml
-    Qt6::Quick
+    Qt6::OpenGLWidgets
+    Qt6::Widgets
 )
 
 if (ITK_FOUND)

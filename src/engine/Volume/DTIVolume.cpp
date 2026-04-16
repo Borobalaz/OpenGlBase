@@ -105,9 +105,10 @@ namespace
  * @param channels
  * @param shader
  */
-DTIVolume::DTIVolume(DTIVolumeChannels channels,
+DTIVolume::DTIVolume(const std::string& id,
+                     DTIVolumeChannels channels,
                      std::shared_ptr<Shader> shader)
-    : Volume(channels.Dxx.GetDimensions(), channels.Dxx.GetSpacing(), std::move(shader)),
+    : Volume(id, channels.Dxx.GetDimensions(), channels.Dxx.GetSpacing(), std::move(shader)),
       channels(std::move(channels))
 {
   // Hallod ez konkrétan majdnem 2 héting volt egy bug amit nem találtam meg és lófaszt sem mutatott a volume render.
@@ -272,6 +273,7 @@ void DTIVolume::InitializeRenderModes()
 
   // Channel Slice Mode
   std::shared_ptr<Shader> channelSliceShader = std::make_shared<Shader>(
+      "dti_channel_slice_shader",
       "shaders/volume_vertex.glsl",
       "shaders/dti_fragment_shaders/volume_dti_tensor_fragment.glsl");
   if (channelSliceShader && channelSliceShader->ID != 0)
@@ -282,6 +284,7 @@ void DTIVolume::InitializeRenderModes()
 
   // Principal Eigenvector RGB Mode
   std::shared_ptr<Shader> principalDirectionShader = std::make_shared<Shader>(
+      "dti_principal_ev_shader",
       "shaders/volume_vertex.glsl",
       "shaders/dti_fragment_shaders/volume_dti_ev_slice_fragment.glsl");
 
@@ -294,6 +297,7 @@ void DTIVolume::InitializeRenderModes()
 
   // 3D FA Raymarch Mode
   std::shared_ptr<Shader> faRaymarchShader = std::make_shared<Shader>(
+      "dti_fa_raymarch_shader",
       "shaders/volume_vertex.glsl",
       "shaders/dti_fragment_shaders/volume_dti_fa_raymarch_fragment.glsl");
 
@@ -308,6 +312,7 @@ void DTIVolume::InitializeRenderModes()
 
   // 3D direction color-coded raymarch mode.
   std::shared_ptr<Shader> directionRaymarchShader = std::make_shared<Shader>(
+      "dti_direction_raymarch_shader",
       "shaders/volume_vertex.glsl",
       "shaders/dti_fragment_shaders/volume_dti_direction_raymarch_fragment.glsl");
 
@@ -322,6 +327,7 @@ void DTIVolume::InitializeRenderModes()
 
   // Lit FA isosurface mode with ambient occlusion.
   std::shared_ptr<Shader> surfaceLitShader = std::make_shared<Shader>(
+      "dti_surface_lit_shader",
       "shaders/volume_vertex.glsl",
       "shaders/dti_fragment_shaders/volume_dti_surface_lit_fragment.glsl");
 

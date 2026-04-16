@@ -5,6 +5,7 @@
 #include <glm/gtc/matrix_transform.hpp>
 
 #include "Volume/VolumeTextureSet.h"
+#include "ui/mediator/InspectBoolField.h"
 
 /**
  * @brief Construct a new Volume:: Volume object
@@ -12,10 +13,12 @@
  * @param metadata 
  * @param shader 
  */
-Volume::Volume(const glm::ivec3& dimensions,
+Volume::Volume(const std::string& id,
+               const glm::ivec3& dimensions,
                const glm::vec3& spacing,
                std::shared_ptr<Shader> shader)
-  : dimensions(dimensions),
+  : id(id),
+    dimensions(dimensions),
     spacing(spacing),
     geometry(std::make_shared<VolumeGeometry>()),
     shader(std::move(shader))
@@ -94,6 +97,22 @@ bool Volume::IsValid() const
   return dimensions.x > 0 && dimensions.y > 0 && dimensions.z > 0 &&
          geometry != nullptr && shader != nullptr && shader->ID != 0 &&
          GetTextureSet().IsValid();
+}
+
+std::string Volume::GetInspectDisplayName() const
+{
+  return id.empty() ? std::string("Volume") : id;
+}
+
+std::vector<std::shared_ptr<InspectField>> Volume::GetInspectFields()
+{
+  return {
+    std::make_shared<InspectBoolField>("visible",
+                                       "Visible",
+                                       "Rendering",
+                                       [this]() { return visible; },
+                                       [this](bool value) { visible = value; })
+  };
 }
 
 /**

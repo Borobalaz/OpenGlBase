@@ -1,14 +1,19 @@
 #include "GameObject.h"
 
+#include <string>
+
 #include <glm/gtc/matrix_transform.hpp>
 
 #include "Uniform/CompositeUniformProvider.h"
+#include "ui/mediator/InspectBoolField.h"
+#include "ui/mediator/InspectVec3Field.h"
 
-GameObject::GameObject()
+GameObject::GameObject(const std::string& id)
+  : id(id),
+    position(glm::vec3(0.0f)),
+    rotation(glm::vec3(0.0f)),
+    scale(glm::vec3(1.0f))
 {
-  position = glm::vec3(0.0f);
-  rotation = glm::vec3(0.0f);
-  scale = glm::vec3(1.0f);
 }
 
 GameObject::~GameObject()
@@ -89,5 +94,46 @@ glm::mat4 GameObject::BuildModelMatrix() const
   model = glm::rotate(model, rotation.z, glm::vec3(0.0f, 0.0f, 1.0f));
   model = glm::scale(model, scale);
   return model;
+}
+
+/**
+ * @brief Get the string which identifies the object. 
+ * 
+ * @return std::string 
+ */
+std::string GameObject::GetInspectDisplayName() const
+{
+  return id.empty() ? std::string("Game Object") : id;
+}
+
+/**
+ * @brief Get the fields that should be visible in the inspector: position, rotation, scale, and visibility.
+ * 
+ * @return std::vector<std::shared_ptr<InspectField>> 
+ */
+std::vector<std::shared_ptr<InspectField>> GameObject::GetInspectFields()
+{
+  return {
+    std::make_shared<InspectVec3Field>("position",
+                                       "Position",
+                                       "Transform",
+                                       [this]() { return position; },
+                                       [this](const glm::vec3& value) { position = value; }),
+    std::make_shared<InspectVec3Field>("rotation",
+                                       "Rotation",
+                                       "Transform",
+                                       [this]() { return rotation; },
+                                       [this](const glm::vec3& value) { rotation = value; }),
+    std::make_shared<InspectVec3Field>("scale",
+                                       "Scale",
+                                       "Transform",
+                                       [this]() { return scale; },
+                                       [this](const glm::vec3& value) { scale = value; }),
+    std::make_shared<InspectBoolField>("isVisible",
+                                       "Visible",
+                                       "Rendering",
+                                       [this]() { return visible; },
+                                       [this](bool value) { visible = value; })
+  };
 }
 

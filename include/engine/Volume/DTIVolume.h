@@ -41,7 +41,8 @@ struct DTIVolumeChannels
 class DTIVolume final : public Volume
 {
 public:
-  explicit DTIVolume(DTIVolumeChannels channels,
+  explicit DTIVolume(const std::string& id,
+                     DTIVolumeChannels channels,
                      std::shared_ptr<Shader> shader);
 
   void Apply(Shader &shader) const override;

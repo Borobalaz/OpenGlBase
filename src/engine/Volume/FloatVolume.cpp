@@ -2,9 +2,10 @@
 
 #include "Texture/Texture3D.h"
 
-FloatVolume::FloatVolume(const VolumeData& volumeData,
+FloatVolume::FloatVolume(const std::string& id,
+                         const VolumeData& volumeData,
                          std::shared_ptr<Shader> shader)
-  : Volume(volumeData.GetDimensions(), volumeData.GetSpacing(), std::move(shader))
+  : Volume(id, volumeData.GetDimensions(), volumeData.GetSpacing(), std::move(shader))
 {
   const glm::ivec3& dimensions = volumeData.GetDimensions();
   textureSet.AddTexture(std::make_shared<Texture3D>(

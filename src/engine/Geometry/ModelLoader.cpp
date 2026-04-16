@@ -244,7 +244,8 @@ std::shared_ptr<GameObject> ModelLoader::LoadGameObject(const std::string& model
     return nullptr;
   }
 
-  std::shared_ptr<GameObject> gameObject = std::make_shared<GameObject>();
+  const std::string objectId = std::string("model:") + std::filesystem::path(modelPath).stem().string();
+  std::shared_ptr<GameObject> gameObject = std::make_shared<GameObject>(objectId);
   const std::filesystem::path modelDirectory =
     std::filesystem::path(modelPath).parent_path();
 

@@ -103,11 +103,11 @@ void QtInspectionMovement::Update(float deltaTime,
   }
   if (pressedKeys.count(Qt::Key_W) > 0)
   {
-    lookAtPoint -= cameraUp * keyVelocity;
+    lookAtPoint += cameraUp * keyVelocity;
   }
   if (pressedKeys.count(Qt::Key_S) > 0)
   {
-    lookAtPoint += cameraUp * keyVelocity;
+    lookAtPoint -= cameraUp * keyVelocity;
   }
 
   if (std::abs(pendingScrollOffset) >= 1e-5f)
@@ -200,7 +200,7 @@ void QtInspectionMovement::SetMousePosition(const QPointF &position)
     {
       const QPointF delta = position - lastMousePosition;
       accumulatedPanDeltaX += static_cast<float>(delta.x());
-      accumulatedPanDeltaY -= static_cast<float>(delta.y());
+      accumulatedPanDeltaY += static_cast<float>(delta.y());
       lastMousePosition = position;
     }
 
@@ -219,7 +219,7 @@ void QtInspectionMovement::SetMousePosition(const QPointF &position)
     {
       const QPointF delta = position - lastMousePosition;
       accumulatedOrbitDeltaX += static_cast<float>(delta.x());
-      accumulatedOrbitDeltaY -= static_cast<float>(delta.y());
+      accumulatedOrbitDeltaY += static_cast<float>(delta.y());
       lastMousePosition = position;
     }
 

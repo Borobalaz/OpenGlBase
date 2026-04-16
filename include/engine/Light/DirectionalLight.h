@@ -7,8 +7,8 @@
 class DirectionalLight : public Light
 {
 public:
-  DirectionalLight();
-  DirectionalLight(const glm::vec3& direction,
+  DirectionalLight(const std::string& id,
+                   const glm::vec3& direction,
                    const glm::vec3& ambient,
                    const glm::vec3& diffuse,
                    const glm::vec3& specular);
@@ -18,17 +18,3 @@ public:
   glm::vec3 direction;
 };
 
-inline DirectionalLight::DirectionalLight()
-  : Light(),
-    direction(0.0f, -1.0f, 0.0f)
-{
-}
-
-inline DirectionalLight::DirectionalLight(const glm::vec3& direction,
-                                          const glm::vec3& ambient,
-                                          const glm::vec3& diffuse,
-                                          const glm::vec3& specular)
-  : Light(ambient, diffuse, specular),
-    direction(direction)
-{
-}

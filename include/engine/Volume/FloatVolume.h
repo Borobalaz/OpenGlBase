@@ -6,7 +6,8 @@
 class FloatVolume final : public Volume
 {
 public:
-  explicit FloatVolume(const VolumeData& volumeData,
+  explicit FloatVolume(const std::string& id,
+                       const VolumeData& volumeData,
                        std::shared_ptr<Shader> shader);
 
 };

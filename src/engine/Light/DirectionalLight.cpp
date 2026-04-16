@@ -4,6 +4,16 @@
 
 #include "Shader.h"
 
+DirectionalLight::DirectionalLight(const std::string& id,
+                                   const glm::vec3& direction,
+                                   const glm::vec3& ambient,
+                                   const glm::vec3& diffuse,
+                                   const glm::vec3& specular)
+  : Light(id, ambient, diffuse, specular),
+    direction(direction)
+{
+}
+
 void DirectionalLight::Apply(Shader& shader) const
 {
   if (uniformIndex < 0 || !enabled)

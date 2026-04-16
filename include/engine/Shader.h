@@ -29,13 +29,16 @@ public:
 
   Shader() = default;
 
-  Shader(const std::string& vertexPath,
-         const std::string& fragmentPath);
+    Shader(const std::string& id,
+      const std::string& vertexPath,
+      const std::string& fragmentPath);
 
   ~Shader();
 
   Shader(const Shader&) = delete;
   Shader& operator=(const Shader&) = delete;
+
+  const std::string& GetId() const { return id; }
 
 
   void Use() const;
@@ -104,6 +107,7 @@ private:
   // File paths and modification times for hot reload
   std::string vertexPath;
   std::string fragmentPath;
+  const std::string id;
   std::filesystem::file_time_type lastVertexModTime;
   std::filesystem::file_time_type lastFragmentModTime;
 };

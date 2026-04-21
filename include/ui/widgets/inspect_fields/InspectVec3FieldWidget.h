@@ -15,6 +15,8 @@
 class InspectVec3FieldWidget : public QWidget, public IInspectWidget
 {
 public:
+  using Getter = std::function<QVariant()>;
+
   explicit InspectVec3FieldWidget(QWidget *parent = nullptr)
     : QWidget(parent)
   {
@@ -89,9 +91,15 @@ public:
 
   QVariant GetValue() const override
   {
+    if (valueGetter)
+    {
+      return valueGetter();
+    }
+
     return QVariantList{xSpin->value(), ySpin->value(), zSpin->value()};
   }
 
+  Getter valueGetter;
   std::function<void(const QVariant &)> valueChangedCallback;
 
 private:

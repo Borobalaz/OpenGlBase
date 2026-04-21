@@ -39,7 +39,9 @@ InspectionCameraMovement::InspectionCameraMovement(const glm::vec3& lookAtPoint,
 void InspectionCameraMovement::Update(float deltaTime,
                                       glm::vec3& position,
                                       glm::vec3& front,
-                                      glm::vec3& up)
+                                      glm::vec3& up,
+                                      float& focalDistance,
+                                      float& focalSize)
 {
   if (!initialized)
   {
@@ -129,22 +131,44 @@ void InspectionCameraMovement::Update(float deltaTime,
   }
 
   const float keyVelocity = panSpeed * deltaTime;
-  if (inputState->IsKeyDown(Qt::Key_A))
+  if (inputState->IsKeyDown(Qt::Key_Left))
   {
     lookAtPoint -= cameraRight * keyVelocity;
   }
-  if (inputState->IsKeyDown(Qt::Key_D))
+  if (inputState->IsKeyDown(Qt::Key_Right))
   {
     lookAtPoint += cameraRight * keyVelocity;
   }
-  if (inputState->IsKeyDown(Qt::Key_W))
+  if (inputState->IsKeyDown(Qt::Key_Up))
   {
     lookAtPoint += cameraUp * keyVelocity;
   }
-  if (inputState->IsKeyDown(Qt::Key_S))
+  if (inputState->IsKeyDown(Qt::Key_Down))
   {
     lookAtPoint -= cameraUp * keyVelocity;
   }
+
+  const float focalDistanceVelocity = std::max(0.05f, focalDistance * 0.75f) * deltaTime;
+  if (inputState->IsKeyDown(Qt::Key_Q))
+  {
+    focalDistance -= focalDistanceVelocity;
+  }
+  if (inputState->IsKeyDown(Qt::Key_E))
+  {
+    focalDistance += focalDistanceVelocity;
+  }
+  focalDistance = std::clamp(focalDistance, 0.01f, maxDistance * 4.0f);
+
+  const float focalSizeVelocity = std::max(0.05f, focalSize * 0.75f) * deltaTime;
+  if (inputState->IsKeyDown(Qt::Key_A))
+  {
+    focalSize -= focalSizeVelocity;
+  }
+  if (inputState->IsKeyDown(Qt::Key_D))
+  {
+    focalSize += focalSizeVelocity;
+  }
+  focalSize = std::clamp(focalSize, 0.01f, 1000.0f);
 
   const float pendingScrollOffset = inputState->GetScrollDelta();
   if (std::abs(pendingScrollOffset) >= 1e-5f)
@@ -173,6 +197,33 @@ void InspectionCameraMovement::SetInputEnabled(bool enabled)
 void InspectionCameraMovement::SetLookAtPoint(const glm::vec3& point)
 {
   lookAtPoint = point;
+}
+
+void InspectionCameraMovement::OnCameraStateChanged(const glm::vec3& position,
+                                                    const glm::vec3& front,
+                                                    const glm::vec3& up)
+{
+  if (glm::length(front) < 1e-5f)
+  {
+    return;
+  }
+
+  const glm::vec3 normalizedFront = glm::normalize(front);
+  const glm::vec3 normalizedUp = glm::length(up) > 1e-5f ? glm::normalize(up) : kWorldUp;
+  const glm::vec3 targetToCamera = glm::normalize(-normalizedFront);
+
+  yaw = glm::degrees(std::atan2(targetToCamera.z, targetToCamera.x));
+  pitch = glm::degrees(std::asin(std::clamp(targetToCamera.y, -1.0f, 1.0f)));
+  pitch = std::clamp(pitch, -89.0f, 89.0f);
+
+  // Keep the current orbit radius and align orbit center with edited camera pose.
+  distance = std::clamp(distance, minDistance, maxDistance);
+  lookAtPoint = position + normalizedFront * distance;
+
+  (void)normalizedUp;
+  firstOrbitDrag = true;
+  firstPanDrag = true;
+  initialized = true;
 }
 
 void InspectionCameraMovement::InitializeFromPosition(const glm::vec3& position)

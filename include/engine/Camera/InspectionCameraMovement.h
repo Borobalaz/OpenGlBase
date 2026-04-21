@@ -18,7 +18,13 @@ public:
   void Update(float deltaTime,
               glm::vec3& position,
               glm::vec3& front,
-              glm::vec3& up) override;
+              glm::vec3& up,
+              float& focalDistance,
+              float& focalSize) override;
+
+  void OnCameraStateChanged(const glm::vec3& position,
+                            const glm::vec3& front,
+                            const glm::vec3& up) override;
 
   void SetInputState(const InputState* state);
   void SetInputEnabled(bool enabled);

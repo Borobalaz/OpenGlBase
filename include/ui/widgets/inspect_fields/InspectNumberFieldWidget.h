@@ -77,9 +77,17 @@ public:
 
   void SetValue(const QVariant &input) override
   {
+    const double numericValue = input.toDouble();
+
     if (setter)
     {
-      setter(input.toDouble());
+      setter(numericValue);
+    }
+
+    if (editorWidget)
+    {
+      const QSignalBlocker blocker(editorWidget);
+      editorWidget->setValue(numericValue);
     }
   }
 

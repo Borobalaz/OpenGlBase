@@ -10,6 +10,8 @@ struct CameraUniforms {
   mat4 viewMatrix;
   mat4 projectionMatrix;
   vec3 viewPosition;
+  vec3 focalPoint;
+  float focalSize;
 };
 
 struct VolumeObjectUniforms {

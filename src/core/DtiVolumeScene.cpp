@@ -182,8 +182,10 @@ void DtiVolumeScene::Update(float deltaTime)
  */
 std::vector<std::shared_ptr<IInspectWidget>> DtiVolumeScene::GetInspectFields()
 {
+  // Basic scene properties
   std::vector<std::shared_ptr<IInspectWidget>> fields = Scene::GetInspectFields(); // Get base scene fields
 
+  // Rotation controls
   auto rotationEnabledField = std::make_shared<InspectCheckboxFieldWidget>(
       "rotationEnabled",
       "Enabled",

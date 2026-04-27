@@ -13,19 +13,19 @@
 
 /**
  * @brief Construct a new Volume:: Volume object
- * 
- * @param metadata 
- * @param shader 
+ *
+ * @param metadata
+ * @param shader
  */
-Volume::Volume(const std::string& id,
-               const glm::ivec3& dimensions,
-               const glm::vec3& spacing,
+Volume::Volume(const std::string &id,
+               const glm::ivec3 &dimensions,
+               const glm::vec3 &spacing,
                std::shared_ptr<Shader> shader)
-  : id(id),
-    dimensions(dimensions),
-    spacing(spacing),
-    geometry(std::make_shared<VolumeGeometry>()),
-    shader(std::move(shader))
+    : id(id),
+      dimensions(dimensions),
+      spacing(spacing),
+      geometry(std::make_shared<VolumeGeometry>()),
+      shader(std::move(shader))
 {
   const glm::vec3 physicalExtents = glm::vec3(dimensions) * spacing;
   const float maxExtent = std::max({physicalExtents.x, physicalExtents.y, physicalExtents.z, 1e-6f});
@@ -34,10 +34,10 @@ Volume::Volume(const std::string& id,
 
 /**
  * @brief Apply the volume's uniform values to the shader.
- * 
+ *
  * @param shader The shader to apply the uniforms to.
  */
-void Volume::Apply(Shader& shader) const
+void Volume::Apply(Shader &shader) const
 {
   if (shader.HasUniform("volume.dimensions"))
   {
@@ -52,10 +52,10 @@ void Volume::Apply(Shader& shader) const
 
 /**
  * @brief Draw the volume using the provided uniform values.
- * 
+ *
  * @param frameUniforms The uniform values for the current frame.
  */
-void Volume::Draw(const UniformProvider& frameUniforms) const
+void Volume::Draw(const UniformProvider &frameUniforms) const
 {
   if (!IsValid() || !visible)
   {
@@ -95,8 +95,8 @@ void Volume::Draw(const UniformProvider& frameUniforms) const
 }
 
 /**
- * @brief Check if the volume is valid based on the presence of geometry, shader, and valid dimensions and textures. 
- * 
+ * @brief Check if the volume is valid based on the presence of geometry, shader, and valid dimensions and textures.
+ *
  * @return True if the volume is valid, false otherwise.
  */
 bool Volume::IsValid() const
@@ -115,6 +115,48 @@ std::vector<std::shared_ptr<IInspectWidget>> Volume::GetInspectFields()
 {
   std::vector<std::shared_ptr<IInspectWidget>> fields;
 
+  auto positionField = std::make_shared<InspectVec3FieldWidget>("position", "Position", "Transform");
+  positionField->SetValue(QVariantList{position.x, position.y, position.z});
+  positionField->valueChangedCallback = [this](const QVariant &value)
+  {
+    const QVariantList list = value.toList();
+    if (list.size() >= 3)
+    {
+      position = glm::vec3(static_cast<float>(list[0].toDouble()),
+                           static_cast<float>(list[1].toDouble()),
+                           static_cast<float>(list[2].toDouble()));
+    }
+  };
+  fields.push_back(positionField);
+
+  auto rotationField = std::make_shared<InspectVec3FieldWidget>("rotation", "Rotation", "Transform");
+  rotationField->SetValue(QVariantList{rotation.x, rotation.y, rotation.z});
+  rotationField->valueChangedCallback = [this](const QVariant &value)
+  {
+    const QVariantList list = value.toList();
+    if (list.size() >= 3)
+    {
+      rotation = glm::vec3(static_cast<float>(list[0].toDouble()),
+                           static_cast<float>(list[1].toDouble()),
+                           static_cast<float>(list[2].toDouble()));
+    }
+  };
+  fields.push_back(rotationField);
+
+  auto scaleField = std::make_shared<InspectVec3FieldWidget>("scale", "Scale", "Transform");
+  scaleField->SetValue(QVariantList{scale.x, scale.y, scale.z});
+  scaleField->valueChangedCallback = [this](const QVariant &value)
+  {
+    const QVariantList list = value.toList();
+    if (list.size() >= 3)
+    {
+      scale = glm::vec3(static_cast<float>(list[0].toDouble()),
+                        static_cast<float>(list[1].toDouble()),
+                        static_cast<float>(list[2].toDouble()));
+    }
+  };
+  fields.push_back(scaleField);
+
   // Visible checkbox
   auto visibleField = std::make_shared<InspectCheckboxFieldWidget>("visible", "Visible", "Rendering");
   visibleField->SetValue(visible);
@@ -130,11 +172,11 @@ std::vector<std::shared_ptr<IInspectWidget>> Volume::GetInspectFields()
   }
 
   // Add fields for each stored uniform in the shader
-  const std::map<std::string, Shader::UniformValue>& uniforms = shader->GetStoredUniforms();
-  for (const auto& [uniformName, uniformValue] : uniforms)
+  const std::map<std::string, Shader::UniformValue> &uniforms = shader->GetStoredUniforms();
+  for (const auto &[uniformName, uniformValue] : uniforms)
   {
     std::string displayName = uniformName;
-    constexpr const char* shaderPrefix = "shader.";
+    constexpr const char *shaderPrefix = "shader.";
     if (displayName.rfind(shaderPrefix, 0) == 0)
     {
       displayName = displayName.substr(7);
@@ -166,11 +208,11 @@ std::vector<std::shared_ptr<IInspectWidget>> Volume::GetInspectFields()
           "Shader Uniforms",
           [this, uniformName]()
           {
-            const auto& values = shader->GetStoredUniforms();
+            const auto &values = shader->GetStoredUniforms();
             const auto it = values.find(uniformName);
             return it != values.end() && std::holds_alternative<int>(it->second)
-              ? static_cast<double>(std::get<int>(it->second))
-              : 0.0;
+                       ? static_cast<double>(std::get<int>(it->second))
+                       : 0.0;
           },
           [this, uniformName](double value)
           {
@@ -189,11 +231,11 @@ std::vector<std::shared_ptr<IInspectWidget>> Volume::GetInspectFields()
           "Shader Uniforms",
           [this, uniformName]()
           {
-            const auto& values = shader->GetStoredUniforms();
+            const auto &values = shader->GetStoredUniforms();
             const auto it = values.find(uniformName);
             return it != values.end() && std::holds_alternative<float>(it->second)
-              ? static_cast<double>(std::get<float>(it->second))
-              : 0.0;
+                       ? static_cast<double>(std::get<float>(it->second))
+                       : 0.0;
           },
           [this, uniformName](double value)
           {
@@ -219,8 +261,8 @@ std::vector<std::shared_ptr<IInspectWidget>> Volume::GetInspectFields()
         if (list.size() >= 3)
         {
           (*shader)[uniformName] = glm::vec3(static_cast<float>(list[0].toDouble()),
-                                            static_cast<float>(list[1].toDouble()),
-                                            static_cast<float>(list[2].toDouble()));
+                                             static_cast<float>(list[1].toDouble()),
+                                             static_cast<float>(list[2].toDouble()));
         }
       };
       fields.push_back(field);
@@ -232,7 +274,7 @@ std::vector<std::shared_ptr<IInspectWidget>> Volume::GetInspectFields()
 
 /**
  * @brief Build the model matrix for the volume.
- * 
+ *
  * @return The model matrix.
  */
 glm::mat4 Volume::BuildModelMatrix() const
@@ -249,10 +291,10 @@ glm::mat4 Volume::BuildModelMatrix() const
 /**
  * @brief Cast a ray against the volume and return the distance to the intersection point.
  *        Use a bounding box for intersection test, with the box defined from (-0.5, -0.5, -0.5) to (0.5, 0.5, 0.5) in local space.
- * 
- * @param rayOrigin 
- * @param rayDirection 
- * @return std::optional<float> 
+ *
+ * @param rayOrigin
+ * @param rayDirection
+ * @return std::optional<float>
  */
 std::optional<float> Volume::CastRay(const glm::vec3 &rayOrigin, const glm::vec3 &rayDirection) const
 {
@@ -312,4 +354,3 @@ std::optional<float> Volume::CastRay(const glm::vec3 &rayOrigin, const glm::vec3
   const glm::vec3 worldHitPoint = glm::vec3(BuildModelMatrix() * glm::vec4(localHitPoint, 1.0f));
   return glm::length(worldHitPoint - rayOrigin);
 }
-

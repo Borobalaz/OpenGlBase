@@ -421,13 +421,20 @@ void DTIVolume::RegisterShadersWithScene(Scene* scene)
   }
 }
 
+/**
+ * @brief Get inspect fields for controlling DTI volume properties.
+ * 
+ * @return std::vector<std::shared_ptr<IInspectWidget>> 
+ */
 std::vector<std::shared_ptr<IInspectWidget>> DTIVolume::GetInspectFields()
 {  
   std::vector<std::shared_ptr<IInspectWidget>> fields;
 
+  // Basic volume properties from the base Volume class
   const std::vector<std::shared_ptr<IInspectWidget>> baseFields = Volume::GetInspectFields();
   fields.insert(fields.end(), baseFields.begin(), baseFields.end());
 
+  // Render mode selection
   QStringList renderModeOptions;
   for (const auto& mode : renderModes)
   {
@@ -457,6 +464,7 @@ std::vector<std::shared_ptr<IInspectWidget>> DTIVolume::GetInspectFields()
   };
   fields.push_back(renderModeField);
 
+  // Dropdown for channel selection
   if (selectedRenderMode == 0) // Channel Slice mode has an additional uniform for selected channel
   {
     QStringList channelOptions = {

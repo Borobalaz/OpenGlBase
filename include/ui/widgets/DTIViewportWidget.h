@@ -27,6 +27,7 @@ public:
   void setDwiPath(const QString &path);
   void setBvalPath(const QString &path);
   void setBvecPath(const QString &path);
+  bool reloadDataset();
 
 signals:
   void dwiPathChanged();

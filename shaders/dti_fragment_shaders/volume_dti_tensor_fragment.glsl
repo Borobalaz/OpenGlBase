@@ -130,8 +130,8 @@ void main()
     discard;
   }
 
-  float sliceObjectZ = sin(0.2*shader.time) * 0.5;
-  //float sliceObjectZ = clamp(shader.sliceZ, 0.0, 1.0) - 0.5;
+  //float sliceObjectZ = sin(0.2*shader.time) * 0.5;
+  float sliceObjectZ = clamp(shader.sliceZ, 0.0, 1.0) - 0.5;
   if (abs(rayDirectionObject.z) < 1e-7)
   {
     discard;
@@ -155,13 +155,15 @@ void main()
   int selected = clamp(shader.selectedChannel, 0, 15);
   float value = SampleSelectedChannel(textureCoord, selected);
 
-  float gain = max(shader.density, 1e-4);
+  float offset = sin(shader.time + 1.0);
+  float asd2 = 1.0 / (1.0 + exp(-value));
   vec3 color = vec3(value);
 
   vec3 ev = texture(volumeTextures[2], textureCoord).rgb;
-  bool asd = abs(ev.r - ev.g) > 5e-5;
-  asd = asd && abs(ev.r - ev.b) > 5e-5;
-  asd = asd && abs(ev.g - ev.b) > 5e-5;
+  float epsilon = 4e-5;
+  bool asd = abs(ev.r - ev.g) > epsilon && 
+    abs(ev.r - ev.b) > epsilon && 
+    abs(ev.g - ev.b) > epsilon;
   float alpha = asd ? 1.0 : 0.0;
 
   gl_FragDepth = ComputeDepth(samplePositionWorld);

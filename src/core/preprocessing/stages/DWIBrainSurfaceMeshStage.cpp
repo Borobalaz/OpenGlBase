@@ -184,6 +184,7 @@ namespace
     Vertex vertex{};
     vertex.position = glm::mix(posA, posB, t);
     vertex.normal = glm::vec3(0.0f);
+    vertex.tangent = glm::vec3(0.0f);
     vertex.texCoord = glm::vec2(0.0f);
 
     const unsigned int newIndex = static_cast<unsigned int>(buffers.vertices.size());

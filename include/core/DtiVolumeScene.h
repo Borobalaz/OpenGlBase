@@ -1,9 +1,11 @@
 #pragma once
 
 #include "Scene/Scene.h"
+#include "Preprocessing/MriTractographySettings.h"
 #include "Volume/DTIVolume.h"
 #include "Preprocessing/MriToDtiPreprocessor.h"
 
+#include <functional>
 #include <memory>
 #include <string>
 
@@ -27,6 +29,10 @@ public:
     const std::string& dwiVolumePathOverride,
     const std::string& bvalPathOverride,
     const std::string& bvecPathOverride);
+  bool ReloadDataset();
+  MriPreprocessingRequest GetCurrentRequest() const { return currentRequest; }
+  void SetReloadCallback(std::function<bool()> callback) { reloadCallback = std::move(callback); }
+  MriTractographySettings &GetTractographySettings() { return *tractographySettingsInspectable; }
   std::string GetLastLoadError() const { return lastLoadError; }
 
   void Update(float deltaTime) override;
@@ -34,6 +40,12 @@ public:
   std::vector<std::shared_ptr<IInspectWidget>> GetInspectFields() override;
   
 private:
+  void ClearProcessedScene();
+  bool ApplyPreprocessingResult(const MriPreprocessingResult& result);
+
+  MriPreprocessingRequest currentRequest;
+  std::shared_ptr<MriTractographySettings> tractographySettingsInspectable;
+  std::function<bool()> reloadCallback;
   std::shared_ptr<DTIVolume> dtiVolume;
   std::shared_ptr<GameObject> brainSurfaceObject;
   std::shared_ptr<GameObject> streamlineObject;

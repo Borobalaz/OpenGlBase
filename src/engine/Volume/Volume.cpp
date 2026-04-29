@@ -219,7 +219,8 @@ std::vector<std::shared_ptr<IInspectWidget>> Volume::GetInspectFields()
             (*shader)[uniformName] = static_cast<int>(value);
           },
           -1e9,
-          1e9));
+          1e9,
+          1.0));
       continue;
     }
 
@@ -242,7 +243,8 @@ std::vector<std::shared_ptr<IInspectWidget>> Volume::GetInspectFields()
             (*shader)[uniformName] = static_cast<float>(value);
           },
           -1e9,
-          1e9));
+          1e9,
+          0.01));
       continue;
     }
 

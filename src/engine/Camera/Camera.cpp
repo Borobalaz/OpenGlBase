@@ -168,7 +168,8 @@ std::vector<std::shared_ptr<IInspectWidget>> Camera::GetInspectFields()
       SetAspect(static_cast<float>(value));
     },
     0.01,
-    100.0
+    100.0,
+    0.01
   );
 
   auto focalDistanceField = std::make_shared<InspectNumberFieldWidget>(
@@ -181,7 +182,8 @@ std::vector<std::shared_ptr<IInspectWidget>> Camera::GetInspectFields()
       SetFocalDistance(static_cast<float>(value));
     },
     0.01,
-    1000.0
+    1000.0,
+    0.1
   );
 
   auto focalSizeField = std::make_shared<InspectNumberFieldWidget>(
@@ -194,7 +196,8 @@ std::vector<std::shared_ptr<IInspectWidget>> Camera::GetInspectFields()
       SetFocalSize(static_cast<float>(value));
     },
     0.01,
-    1000.0
+    1000.0,
+    0.1
   );
 
   auto movementComponentField = std::make_shared<InspectTextFieldWidget>(

@@ -3,6 +3,8 @@
 #include <iostream>
 #include <memory>
 
+#include <QOpenGLContext>
+
 #include "core/DtiVolumeScene.h"
 #include "Camera/InspectionCameraMovement.h"
 
@@ -110,6 +112,10 @@ void DTIViewportWidget::initializeScene()
 {
   // Create DTI-specific scene
   auto dtiScene = std::make_unique<DtiVolumeScene>();
+  dtiScene->SetReloadCallback([this]()
+  {
+    return reloadDataset();
+  });
   dtiScene->Init();
 
   // DTI-specific: load dataset and prepare for rendering
@@ -129,6 +135,40 @@ void DTIViewportWidget::initializeScene()
 
   // Store the scene in base class
   scene = std::move(dtiScene);
+}
+
+/**
+ * @brief Reloads the DTI dataset before setting the context 
+ *  to ensure that OpenGL resources are created with a current context. 
+ *  Updates the viewport after loading.
+ * 
+ * @return true 
+ * @return false 
+ */
+bool DTIViewportWidget::reloadDataset()
+{
+  auto *currentDtiScene = dynamic_cast<DtiVolumeScene *>(scene.get());
+  if (!currentDtiScene)
+  {
+    return false;
+  }
+
+  const MriPreprocessingRequest request = currentDtiScene->GetCurrentRequest();
+
+  // Make the OpenGL context current before loading the dataset, 
+  // as it may involve creating OpenGL resources (textures, buffers) that require a current context.
+  makeCurrent();
+
+  const bool loaded = currentDtiScene->LoadDataset(request.dwiVolumePath, request.bvalPath, request.bvecPath);
+  if (!loaded)
+  {
+    std::cout << "DTI dataset reload failed: " << currentDtiScene->GetLastLoadError() << "\n";
+    doneCurrent();
+    return false;
+  }
+  doneCurrent();
+  update();
+  return true;
 }
 
 

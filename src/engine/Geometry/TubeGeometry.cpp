@@ -98,7 +98,8 @@ void TubeGeometry::Generate()
 
         Vertex v;
         v.position = p + offset;
-        v.normal = glm::normalize(offset);
+        v.normal = glm::normalize(offset);  // radial direction for cylindrical lighting
+        v.tangent = tangent;                 // tangent direction for coloring
         v.texCoord = glm::vec2(
           (float)j / radialSegments,
           (float)s / segment.size()

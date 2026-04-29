@@ -381,6 +381,11 @@ bool DTIVolume::SetActiveRenderMode(int modeIndex)
   return true;
 }
 
+bool DTIVolume::SetSelectedRenderModeIndex(int modeIndex)
+{
+  return SetActiveRenderMode(modeIndex);
+}
+
 /**
  * @brief Get a pointer to the active render mode.
  *

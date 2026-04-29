@@ -1,5 +1,7 @@
 #pragma once
 
+#include <algorithm>
+#include <cmath>
 #include <functional>
 #include <utility>
 
@@ -28,6 +30,7 @@ public:
                            Setter setter,
                            double minimumValue = 0.0,
                            double maximumValue = 1.0,
+                           double stepSize = 0.01,
                            bool readOnly = false,
                            QObject *parent = nullptr)
     : QObject(parent),
@@ -38,6 +41,7 @@ public:
       setter(std::move(setter)),
       minimumValue(minimumValue),
       maximumValue(maximumValue),
+      stepSize(std::max(stepSize, 1e-12)),
       readOnlyValue(readOnly)
   {
   }
@@ -47,6 +51,7 @@ public:
                            QString groupName,
                            double minimumValue = 0.0,
                            double maximumValue = 1.0,
+                             double stepSize = 0.01,
                            bool readOnly = false,
                            QObject *parent = nullptr)
     : InspectNumberFieldWidget(std::move(fieldId),
@@ -56,6 +61,7 @@ public:
                                Setter{},
                                minimumValue,
                                maximumValue,
+                               stepSize,
                                readOnly,
                                parent)
   {
@@ -67,6 +73,7 @@ public:
   bool isReadOnly() const override { return readOnlyValue; }
   double minimum() const override { return minimumValue; }
   double maximum() const override { return maximumValue; }
+  double singleStep() const { return stepSize; }
 
   QVariant value() const
   {
@@ -94,8 +101,8 @@ public:
   IInspectWidget *addToLayout(QHBoxLayout *layout) override
   {
     auto *editor = new QDoubleSpinBox;
-    editor->setDecimals(4);
-    editor->setSingleStep(0.01);
+    editor->setDecimals(DecimalsForStep(stepSize));
+    editor->setSingleStep(stepSize);
     editor->setButtonSymbols(QAbstractSpinBox::NoButtons);
     editor->setMinimumWidth(0);
     editor->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Preferred);
@@ -132,6 +139,23 @@ private:
   Setter setter;
   double minimumValue = 0.0;
   double maximumValue = 1.0;
+  double stepSize = 0.01;
   bool readOnlyValue = false;
   QPointer<QDoubleSpinBox> editorWidget;
+
+  static int DecimalsForStep(double step)
+  {
+    if (!(step > 0.0))
+    {
+      return 2;
+    }
+
+    const double digits = -std::log10(step);
+    if (digits <= 0.0)
+    {
+      return 0;
+    }
+
+    return std::clamp(static_cast<int>(std::ceil(digits)), 0, 10);
+  }
 };

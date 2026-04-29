@@ -65,6 +65,7 @@ public:
 
   void AddInspectProvider(std::shared_ptr<InspectProvider> provider) { inspectProviders.push_back(provider.get()); }
   void AddInspectProvider(InspectProvider* provider) { inspectProviders.push_back(provider); }
+  void RebuildInspectProviders();
 
   // Shader management
   void RegisterShader(const std::string& name, std::shared_ptr<Shader> shader);
@@ -88,8 +89,6 @@ public:
 
 
 private:
-  void RebuildInspectProviders();
-
   float clearColor[4];
 
   std::shared_ptr<Camera> camera;

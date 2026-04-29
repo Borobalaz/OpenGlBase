@@ -348,6 +348,18 @@ Scene::~Scene()
 {
 }
 
+void Scene::RebuildInspectProviders()
+{
+  inspectProviders.clear();
+  AddInspectProvider(this);
+  AddInspectProvider(camera);
+
+  for (const auto &light : lights)
+  {
+    AddInspectProvider(light);
+  }
+}
+
 std::vector<std::shared_ptr<IInspectWidget>> Scene::GetInspectFields()
 {
   std::vector<std::shared_ptr<IInspectWidget>> fields;

@@ -10,11 +10,14 @@
 #include "Volume/VolumeData.h"
 #include "Volume/DTIVolume.h"
 
+class MriTractographySettings;
+
 struct MriPreprocessingRequest
 {
   std::string dwiVolumePath;
   std::string bvalPath;
   std::string bvecPath;
+  std::shared_ptr<MriTractographySettings> tractographySettings;
 };
 
 struct MriPreprocessingReport

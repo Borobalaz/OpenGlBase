@@ -11,8 +11,10 @@
 #include <iostream>
 #include <glm/glm.hpp>
 
-#include "ui/widgets/inspect_fields/InspectNumberFieldWidget.h"
 #include "ui/widgets/inspect_fields/InspectCheckboxFieldWidget.h"
+#include "ui/widgets/inspect_fields/InspectNumberFieldWidget.h"
+#include "ui/widgets/inspect_fields/InspectFilePickerWidget.h"
+#include "ui/widgets/inspect_fields/InspectActionFieldWidget.h"
 
 /**
  * @brief Construct a new Dti Volume Scene:: Dti Volume Scene object
@@ -21,6 +23,8 @@
 DtiVolumeScene::DtiVolumeScene()
     : dtiVolume(nullptr)
 {
+  tractographySettingsInspectable = std::make_shared<MriTractographySettings>();
+  currentRequest.tractographySettings = tractographySettingsInspectable;
 }
 
 /**
@@ -36,23 +40,32 @@ bool DtiVolumeScene::LoadDataset(
     const std::string &bvalPath,
     const std::string &bvecPath)
 {
+  currentRequest.tractographySettings = tractographySettingsInspectable;
+  currentRequest.dwiVolumePath = dwiVolumePath;
+  currentRequest.bvalPath = bvalPath;
+  currentRequest.bvecPath = bvecPath;
+
+  return ReloadDataset();
+}
+
+bool DtiVolumeScene::ReloadDataset()
+{
   lastLoadError.clear();
 
   try
   {
-    // Configure preprocessing request
-    MriPreprocessingRequest request;
-    request.dwiVolumePath = dwiVolumePath;
-    request.bvalPath = bvalPath;
-    request.bvecPath = bvecPath;
-
     // Run preprocessing pipeline
-    MriPreprocessingResult result = preprocessor.Process(request);
+    MriPreprocessingResult result = preprocessor.Process(currentRequest);
 
     // Check if preprocessing succeeded
     if (result.report.sourceVolumePath.empty())
     {
       lastLoadError = "No suitable volume found in dataset";
+      return false;
+    }
+
+    if (!ApplyPreprocessingResult(result))
+    {
       return false;
     }
 
@@ -73,74 +86,6 @@ bool DtiVolumeScene::LoadDataset(
       }
     }
 
-    // Create DTI volume from processed channels with tensor-eigenvector shader
-    std::shared_ptr<Shader> volumeShader = std::make_shared<Shader>(
-        "dti_volume_main_shader",
-        "shaders/volume_vertex.glsl",
-        "shaders/dti_fragment_shaders/volume_dti_tensor_fragment.glsl");
-    (*volumeShader)["shader.sliceZ"] = 0.5f;
-    (*volumeShader)["shader.density"] = 1.0f;
-
-    dtiVolume = std::make_shared<DTIVolume>("dti_volume_main", result.channels, volumeShader);
-    dtiVolume->SetRotation(glm::vec3(-90.0f / 180.0f * glm::pi<float>(), 0.0f, 0.0f));
-
-    AddVolume(dtiVolume);
-    AddInspectProvider(dtiVolume);
-
-    // Register shaders for hot reload tracking
-    dtiVolume->RegisterShadersWithScene(this);
-
-    // FA surface mesh
-    if (result.surfaceMesh)
-    {
-      std::shared_ptr<Shader> meshShader = std::make_shared<Shader>(
-          "dti_brain_surface_shader",
-          "shaders/vertex.glsl",
-          "shaders/fragment.glsl");
-
-      std::shared_ptr<Material> meshMaterial = std::make_shared<Material>(meshShader);
-      meshMaterial->SetAmbientColor(glm::vec3(0.35f, 0.35f, 0.35f));
-      meshMaterial->SetDiffuseColor(glm::vec3(0.62f, 0.62f, 0.62f));
-      meshMaterial->SetSpecularColor(glm::vec3(0.08f, 0.08f, 0.08f));
-      meshMaterial->SetShininess(18.0f);
-
-      result.surfaceMesh->SetMaterial(meshMaterial);
-      brainSurfaceObject = std::make_shared<GameObject>("dti_brain_surface");
-      brainSurfaceObject->AddMesh(result.surfaceMesh);
-      brainSurfaceObject->SetRotation(glm::vec3(-90.0f / 180.0f * glm::pi<float>(), 0.0f, 0.0f));
-      AddGameObject(brainSurfaceObject);
-      AddInspectProvider(brainSurfaceObject);
-    }
-    else
-    {
-      result.report.warnings.push_back("No brain surface mesh was generated for DTI scene rendering.");
-    }
-
-    if (result.streamlineMesh)
-    {
-      std::shared_ptr<Shader> streamlineShader = std::make_shared<Shader>(
-          "dti_streamline_shader",
-          "shaders/streamline_vertex.glsl",
-          "shaders/streamline_fragment.glsl");
-
-      std::shared_ptr<Material> streamlineMaterial = std::make_shared<Material>(streamlineShader);
-      streamlineMaterial->SetAmbientColor(glm::vec3(1.0f, 0.58f, 0.16f));
-      streamlineMaterial->SetDiffuseColor(glm::vec3(1.0f, 0.58f, 0.16f));
-      streamlineMaterial->SetSpecularColor(glm::vec3(0.0f, 0.0f, 0.0f));
-      streamlineMaterial->SetShininess(1.0f);
-
-      result.streamlineMesh->SetMaterial(streamlineMaterial);
-      streamlineObject = std::make_shared<GameObject>("dti_streamlines");
-      streamlineObject->AddMesh(result.streamlineMesh);
-      streamlineObject->SetRotation(glm::vec3(-90.0f / 180.0f * glm::pi<float>(), 0.0f, 0.0f));
-      AddGameObject(streamlineObject);
-      AddInspectProvider(streamlineObject);
-    }
-    else
-    {
-      result.report.warnings.push_back("No fiber streamlines were generated for DTI scene rendering.");
-    }
-
     return true;
   }
   catch (const std::exception &ex)
@@ -155,6 +100,91 @@ bool DtiVolumeScene::LoadDataset(
     std::cerr << lastLoadError << std::endl;
     return false;
   }
+}
+
+void DtiVolumeScene::ClearProcessedScene()
+{
+  dtiVolume.reset();
+  brainSurfaceObject.reset();
+  streamlineObject.reset();
+  ClearGameObjects();
+  ClearVolumes();
+}
+
+bool DtiVolumeScene::ApplyPreprocessingResult(const MriPreprocessingResult &result)
+{
+  const int previousRenderMode = dtiVolume ? dtiVolume->GetSelectedRenderModeIndex() : 0;
+  const int previousChannel = dtiVolume ? dtiVolume->GetSelectedChannelIndex() : 0;
+
+  ClearProcessedScene();
+  RebuildInspectProviders();
+
+  // Create DTI volume from processed channels with tensor-eigenvector shader
+  std::shared_ptr<Shader> volumeShader = std::make_shared<Shader>(
+      "dti_volume_main_shader",
+      "shaders/volume_vertex.glsl",
+      "shaders/dti_fragment_shaders/volume_dti_tensor_fragment.glsl");
+  (*volumeShader)["shader.sliceZ"] = 0.5f;
+  (*volumeShader)["shader.density"] = 1.0f;
+
+  dtiVolume = std::make_shared<DTIVolume>("dti_volume_main", result.channels, volumeShader);
+  dtiVolume->SetRotation(glm::vec3(-90.0f / 180.0f * glm::pi<float>(), 0.0f, 0.0f));
+  dtiVolume->SetSelectedRenderModeIndex(previousRenderMode);
+  dtiVolume->SetSelectedChannelIndex(previousChannel);
+
+  AddVolume(dtiVolume);
+  AddInspectProvider(dtiVolume);
+
+  // Register shaders for hot reload tracking
+  dtiVolume->RegisterShadersWithScene(this);
+
+  // FA surface mesh
+  if (result.surfaceMesh)
+  {
+    std::shared_ptr<Shader> meshShader = std::make_shared<Shader>(
+        "dti_brain_surface_shader",
+        "shaders/vertex.glsl",
+        "shaders/fragment.glsl");
+    this->RegisterShader("dti_brain_surface_shader", meshShader);
+
+    std::shared_ptr<Material> meshMaterial = std::make_shared<Material>(meshShader);
+    meshMaterial->SetAmbientColor(glm::vec3(0.35f, 0.35f, 0.35f));
+    meshMaterial->SetDiffuseColor(glm::vec3(0.62f, 0.62f, 0.62f));
+    meshMaterial->SetSpecularColor(glm::vec3(0.08f, 0.08f, 0.08f));
+    meshMaterial->SetShininess(18.0f);
+
+    result.surfaceMesh->SetMaterial(meshMaterial);
+    brainSurfaceObject = std::make_shared<GameObject>("dti_brain_surface");
+    brainSurfaceObject->AddMesh(result.surfaceMesh);
+    brainSurfaceObject->SetRotation(glm::vec3(-90.0f / 180.0f * glm::pi<float>(), 0.0f, 0.0f));
+    AddGameObject(brainSurfaceObject);
+    AddInspectProvider(brainSurfaceObject);
+  }
+
+  if (result.streamlineMesh)
+  {
+    std::shared_ptr<Shader> streamlineShader = std::make_shared<Shader>(
+        "dti_streamline_shader",
+        "shaders/streamline_vertex.glsl",
+        "shaders/streamline_fragment.glsl");
+
+    this->RegisterShader("dti_streamline_shader", streamlineShader);
+    
+    std::shared_ptr<Material> streamlineMaterial = std::make_shared<Material>(streamlineShader);
+    streamlineMaterial->SetAmbientColor(glm::vec3(1.0f, 0.58f, 0.16f));
+    streamlineMaterial->SetDiffuseColor(glm::vec3(1.0f, 0.58f, 0.16f));
+    streamlineMaterial->SetSpecularColor(glm::vec3(0.0f, 0.0f, 0.0f));
+    streamlineMaterial->SetShininess(1.0f);
+
+    result.streamlineMesh->SetMaterial(streamlineMaterial);
+    streamlineObject = std::make_shared<GameObject>("dti_streamlines");
+    streamlineObject->AddMesh(result.streamlineMesh);
+    streamlineObject->SetRotation(glm::vec3(-90.0f / 180.0f * glm::pi<float>(), 0.0f, 0.0f));
+    AddGameObject(streamlineObject);
+    AddInspectProvider(streamlineObject);
+  }
+
+  return true;
 }
 
 /**
@@ -185,6 +215,62 @@ std::vector<std::shared_ptr<IInspectWidget>> DtiVolumeScene::GetInspectFields()
   // Basic scene properties
   std::vector<std::shared_ptr<IInspectWidget>> fields = Scene::GetInspectFields(); // Get base scene fields
 
+  auto dwiField = std::make_shared<InspectFilePickerWidget>(
+      "dwiVolumePath",
+      "DWI Volume",
+      "Preprocessing",
+      "Select DWI volume",
+      "DWI volume (*.nii *.nii.gz *.nrrd *.mha *.mhd *.vxa);;All files (*.*)");
+  dwiField->SetValue(QString::fromStdString(currentRequest.dwiVolumePath));
+  dwiField->valueChangedCallback = [this](const QVariant &value)
+  {
+    currentRequest.dwiVolumePath = value.toString().toStdString();
+  };
+  fields.push_back(dwiField);
+
+  auto bvalField = std::make_shared<InspectFilePickerWidget>(
+      "bvalPath",
+      "B-Values",
+      "Preprocessing",
+      "Select b-values file",
+      "B-values (*.bval *.txt *.csv);;All files (*.*)");
+  bvalField->SetValue(QString::fromStdString(currentRequest.bvalPath));
+  bvalField->valueChangedCallback = [this](const QVariant &value)
+  {
+    currentRequest.bvalPath = value.toString().toStdString();
+  };
+  fields.push_back(bvalField);
+
+  auto bvecField = std::make_shared<InspectFilePickerWidget>(
+      "bvecPath",
+      "B-Vectors",
+      "Preprocessing",
+      "Select b-vectors file",
+      "B-vectors (*.bvec *.txt *.csv);;All files (*.*)");
+  bvecField->SetValue(QString::fromStdString(currentRequest.bvecPath));
+  bvecField->valueChangedCallback = [this](const QVariant &value)
+  {
+    currentRequest.bvecPath = value.toString().toStdString();
+  };
+  fields.push_back(bvecField);
+
+  const std::vector<std::shared_ptr<IInspectWidget>> tractographyFields = tractographySettingsInspectable ? tractographySettingsInspectable->GetInspectFields() : std::vector<std::shared_ptr<IInspectWidget>>{};
+  fields.insert(fields.end(), tractographyFields.begin(), tractographyFields.end());
+
+  auto rerunField = std::make_shared<InspectActionFieldWidget>(
+      "rerunPreprocessing",
+      "Rerun preprocessing",
+      "Preprocessing");
+  rerunField->actionCallback = [this]()
+  {
+    const bool reloaded = reloadCallback ? reloadCallback() : ReloadDataset();
+    if (!reloaded)
+    {
+      std::cout << "DTI dataset reload failed: " << lastLoadError << "\n";
+    }
+  };
+  fields.push_back(rerunField);
+
   // Rotation controls
   auto rotationEnabledField = std::make_shared<InspectCheckboxFieldWidget>(
       "rotationEnabled",
@@ -205,7 +291,9 @@ std::vector<std::shared_ptr<IInspectWidget>> DtiVolumeScene::GetInspectFields()
       { return (double)rotationSpeed; },
       [this](double newValue)
       { rotationSpeed = newValue; },
-      0.0, 5.0);
+      0.0,
+      5.0,
+      0.01);
   fields.push_back(rotationSpeedField);
 
   return fields;

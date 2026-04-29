@@ -10,14 +10,14 @@ void VolumeGeometry::Generate()
 {
   vertices =
   {
-    { glm::vec3(-0.5f, -0.5f, -0.5f), glm::vec3(0.0f), glm::vec2(0.0f) },
-    { glm::vec3( 0.5f, -0.5f, -0.5f), glm::vec3(0.0f), glm::vec2(0.0f) },
-    { glm::vec3( 0.5f,  0.5f, -0.5f), glm::vec3(0.0f), glm::vec2(0.0f) },
-    { glm::vec3(-0.5f,  0.5f, -0.5f), glm::vec3(0.0f), glm::vec2(0.0f) },
-    { glm::vec3(-0.5f, -0.5f,  0.5f), glm::vec3(0.0f), glm::vec2(0.0f) },
-    { glm::vec3( 0.5f, -0.5f,  0.5f), glm::vec3(0.0f), glm::vec2(0.0f) },
-    { glm::vec3( 0.5f,  0.5f,  0.5f), glm::vec3(0.0f), glm::vec2(0.0f) },
-    { glm::vec3(-0.5f,  0.5f,  0.5f), glm::vec3(0.0f), glm::vec2(0.0f) }
+    { glm::vec3(-0.5f, -0.5f, -0.5f), glm::vec3(0.0f), glm::vec2(0.0f), glm::vec3(0.0f) },
+    { glm::vec3( 0.5f, -0.5f, -0.5f), glm::vec3(0.0f), glm::vec2(0.0f), glm::vec3(0.0f) },
+    { glm::vec3( 0.5f,  0.5f, -0.5f), glm::vec3(0.0f), glm::vec2(0.0f), glm::vec3(0.0f) },
+    { glm::vec3(-0.5f,  0.5f, -0.5f), glm::vec3(0.0f), glm::vec2(0.0f), glm::vec3(0.0f) },
+    { glm::vec3(-0.5f, -0.5f,  0.5f), glm::vec3(0.0f), glm::vec2(0.0f), glm::vec3(0.0f) },
+    { glm::vec3( 0.5f, -0.5f,  0.5f), glm::vec3(0.0f), glm::vec2(0.0f), glm::vec3(0.0f) },
+    { glm::vec3( 0.5f,  0.5f,  0.5f), glm::vec3(0.0f), glm::vec2(0.0f), glm::vec3(0.0f) },
+    { glm::vec3(-0.5f,  0.5f,  0.5f), glm::vec3(0.0f), glm::vec2(0.0f), glm::vec3(0.0f) }
   };
 
   indices =

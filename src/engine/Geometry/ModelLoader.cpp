@@ -138,7 +138,8 @@ namespace
       vertices.push_back(Vertex{
         glm::vec3(aiPosition.x, aiPosition.y, aiPosition.z),
         normal,
-        texCoord
+        texCoord,
+        glm::vec3(0.0f)  // tangent - not used for model geometry
       });
     }
 

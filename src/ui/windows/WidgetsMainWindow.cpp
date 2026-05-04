@@ -8,7 +8,7 @@
 #include "ui/controllers/MainWindowShortcuts.h"
 #include "ui/styles/DarkThemeStyle.h"
 #include "ui/styles/LightThemeStyle.h"
-#include "ui/widgets/DTIViewportWidget.h"
+#include "ui/widgets/OpenGLViewportWidget.h"
 #include "ui/widgets/InspectorWidget.h"
 #include "ui/widgets/RenderStatisticsWidget.h"
 #include "ui/widgets/SceneObjectListWidget.h"
@@ -30,15 +30,6 @@ WidgetsMainWindow::WidgetsMainWindow(QWidget *parent)
 
   // Build the main window layout
   setupLayout();
-
-  //viewportWidget->setDwiPath("assets/volumes/dwi/HARDI150_hdbet_masked4d.nii.gz");
-  //viewportWidget->setBvalPath("assets/volumes/dwi/HARDI150.bval");
-  //viewportWidget->setBvecPath("assets/volumes/dwi/HARDI150.bvec");
-
-  viewportWidget->setDwiPath("assets/volumes/dwi/human/HARDI150_hdbet_masked4d.nii.gz");
-  viewportWidget->setBvalPath("assets/volumes/dwi/human/HARDI150.bval");
-  viewportWidget->setBvecPath("assets/volumes/dwi/human/HARDI150.bvec");
-
 
   // Wire signals between the QTSceneInspector, the scene object list 
   //  and inspector widgets, to synchronize state between them
@@ -79,7 +70,7 @@ void WidgetsMainWindow::setupLayout()
   auto *viewportLayout = new QVBoxLayout(viewportPanel);
   viewportLayout->setContentsMargins(1, 1, 1, 1);
 
-  viewportWidget = new DTIViewportWidget(viewportPanel);
+  viewportWidget = new OpenGLViewportWidget(viewportPanel);
   viewportLayout->addWidget(viewportWidget, 1);
 
   // Right panel: inspector
@@ -99,7 +90,6 @@ void WidgetsMainWindow::setupLayout()
   rootLayout->setColumnStretch(2, 0);
 
   setCentralWidget(root);
-
 }
 
 void WidgetsMainWindow::applyTheme()

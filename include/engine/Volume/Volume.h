@@ -7,14 +7,16 @@
 #include <glm/glm.hpp>
 
 #include "IDrawable.h"
+#include "IUpdateable.h"
 #include "Shader.h"
+#include "Transform.h"
 #include "Uniform/UniformProvider.h"
 #include "Volume/VolumeData.h"
 #include "Geometry/VolumeGeometry.h"
 #include "Volume/VolumeTextureSet.h"
 #include "ui/widgets/inspect_fields/InspectProvider.h"
 
-class Volume : public UniformProvider, public IDrawable, public InspectProvider
+class Volume : public UniformProvider, public IDrawable, public IUpdateable, public InspectProvider
 {
 public:
   virtual ~Volume() = default;
@@ -27,13 +29,13 @@ public:
   const VolumeTextureSet &GetTextureSet() const { return textureSet; }
 
   // Getters and setters
-  const glm::vec3 &GetPosition() const { return position; }
-  const glm::vec3 &GetRotation() const { return rotation; }
-  const glm::vec3 &GetScale() const { return scale; }
+  const glm::vec3 &GetPosition() const { return transform.GetPosition(); }
+  const glm::vec3 &GetRotation() const { return transform.GetRotation(); }
+  const glm::vec3 &GetScale() const { return transform.GetScale(); }
 
-  void SetPosition(const glm::vec3 &newPosition) { position = newPosition; }
-  void SetRotation(const glm::vec3 &newRotation) { rotation = newRotation; }
-  void SetScale(const glm::vec3 &newScale) { scale = newScale; }
+  void SetPosition(const glm::vec3 &newPosition) { transform.SetPosition(newPosition); }
+  void SetRotation(const glm::vec3 &newRotation) { transform.SetRotation(newRotation); }
+  void SetScale(const glm::vec3 &newScale) { transform.SetScale(newScale); }
   const std::string &GetId() const { return id; }
 
   // InspectProvider implementation
@@ -47,11 +49,7 @@ public:
 private:
   const std::string id;
   bool visible = true;
-
-  // Transform properties
-  glm::vec3 position{0.0f, 0.0f, 0.0f};
-  glm::vec3 rotation{0.0f, 0.0f, 0.0f};
-  glm::vec3 scale{1.0f, 1.0f, 1.0f};
+  Transform transform;
 
   glm::ivec3 dimensions{0, 0, 0};
   glm::vec3 spacing{1.0f, 1.0f, 1.0f};

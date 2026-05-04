@@ -5,10 +5,11 @@
 
 #include <glm/glm.hpp>
 
+#include "IUpdateable.h"
 #include "Uniform/UniformProvider.h"
 #include "ui/widgets/inspect_fields/InspectProvider.h"
 
-class Light : public UniformProvider, public InspectProvider
+class Light : public UniformProvider, public IUpdateable, public InspectProvider
 {
 public:
   enum class Type

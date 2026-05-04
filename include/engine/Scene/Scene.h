@@ -19,6 +19,8 @@
 #include "Uniform/UniformProvider.h"
 #include "Volume/Volume.h"
 #include "Input/InputState.h"
+#include "IDrawable.h"
+#include "IUpdateable.h"
 #include "ui/widgets/inspect_fields/InspectProvider.h"
 #include <memory>
 
@@ -57,11 +59,25 @@ public:
   void AddLight(std::shared_ptr<Light> light) { lights.push_back(light); }
   void ClearLights()  { lights.clear(); }
 
-  void AddGameObject(std::shared_ptr<GameObject> gameObject) { gameObjects.push_back(gameObject); }
-  void ClearGameObjects() { gameObjects.clear(); }
+  void AddDrawable(std::shared_ptr<IDrawable> drawable) { drawables.push_back(drawable); }
+  void ClearDrawables() { drawables.clear(); }
 
-  void AddVolume(std::shared_ptr<Volume> volume) { volumes.push_back(volume); }
-  void ClearVolumes() { volumes.clear(); }
+  void AddUpdateable(std::shared_ptr<IUpdateable> updateable) { updateables.push_back(updateable); }
+  void ClearUpdateables() { updateables.clear(); }
+
+  void AddGameObject(std::shared_ptr<GameObject> gameObject)
+  {
+    AddDrawable(gameObject);
+    AddUpdateable(gameObject);
+  }
+  void ClearGameObjects();
+
+  void AddVolume(std::shared_ptr<Volume> volume)
+  {
+    AddDrawable(volume);
+    AddUpdateable(volume);
+  }
+  void ClearVolumes();
 
   void AddInspectProvider(std::shared_ptr<InspectProvider> provider) { inspectProviders.push_back(provider.get()); }
   void AddInspectProvider(InspectProvider* provider) { inspectProviders.push_back(provider); }
@@ -97,8 +113,8 @@ private:
   std::shared_ptr<Skybox> skybox;
 
   std::vector<std::shared_ptr<Light>> lights;
-  std::vector<std::shared_ptr<Volume>> volumes;
-  std::vector<std::shared_ptr<GameObject>> gameObjects;
+  std::vector<std::shared_ptr<IDrawable>> drawables;
+  std::vector<std::shared_ptr<IUpdateable>> updateables;
   std::vector<std::shared_ptr<Shader>> shaders;
   InputState inputState;
 

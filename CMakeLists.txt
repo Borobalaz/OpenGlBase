@@ -17,14 +17,6 @@ find_package(glm CONFIG REQUIRED)
 find_package(glad CONFIG REQUIRED)
 find_package(assimp CONFIG REQUIRED)
 find_package(Qt6 REQUIRED COMPONENTS Core Gui OpenGL OpenGLWidgets Widgets)
-find_package(ITK CONFIG QUIET COMPONENTS
-    ITKCommon
-    ITKIOImageBase
-    ITKIONIFTI
-    ITKIONRRD
-    ITKIOMeta
-    ITKIOGDCM
-)
 
 find_path(STB_INCLUDE_DIR
     NAMES stb_image.h
@@ -47,7 +39,6 @@ add_executable(app_qt
     ${QT_HOST_SOURCES}
     ${CMAKE_CURRENT_SOURCE_DIR}/include/ui/controllers/MainWindowShortcuts.h
     ${CMAKE_CURRENT_SOURCE_DIR}/include/ui/widgets/OpenGLViewportWidget.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/ui/widgets/DTIViewportWidget.h
     ${CMAKE_CURRENT_SOURCE_DIR}/include/ui/widgets/InspectProviderWidget.h
     ${CMAKE_CURRENT_SOURCE_DIR}/include/ui/widgets/InspectorWidget.h
     ${CMAKE_CURRENT_SOURCE_DIR}/include/ui/state/RenderStatistics.h

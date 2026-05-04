@@ -6,7 +6,7 @@
 
 #include "ui/controllers/MainWindowShortcuts.h"
 
-class DTIViewportWidget;
+class OpenGLViewportWidget;
 class InspectorWidget;
 class RenderStatisticsWidget;
 class SceneObjectListWidget;
@@ -30,7 +30,7 @@ private:
   bool useDarkTheme = true;
   std::unique_ptr<MainWindowShortcuts> shortcuts;
 
-  DTIViewportWidget *viewportWidget = nullptr;
+  OpenGLViewportWidget *viewportWidget = nullptr;
   InspectorWidget *inspectorWidget = nullptr;
   RenderStatisticsWidget *renderStatisticsWidget = nullptr;
 

@@ -6,7 +6,7 @@
 #include "Material.h"
 #include "Uniform/UniformProvider.h"
 
-class Mesh
+class Mesh: public IDrawable
 {
 public:
   Mesh(std::shared_ptr<Geometry> geometry,

@@ -8,12 +8,14 @@
 
 #include "Mesh.h"
 #include "IDrawable.h"
+#include "IUpdateable.h"
 #include "Shader.h"
+#include "Transform.h"
 #include "Uniform/UniformProvider.h"
 #include "ui/widgets/inspect_fields/InspectProvider.h"
 #include "ui/widgets/inspect_fields/IInspectWidget.h"
 
-class GameObject : public UniformProvider, public IDrawable, public InspectProvider
+class GameObject : public UniformProvider, public IDrawable, public IUpdateable, public InspectProvider
 {
 public:
   explicit GameObject(const std::string& id);
@@ -21,16 +23,15 @@ public:
 
   void AddMesh(std::shared_ptr<Mesh> mesh);
 
-  void Update(float deltaTime);
   void Draw(const UniformProvider& frameUniforms) const override;
   void Apply(Shader& shader) const override;
 
-  void SetPosition(const glm::vec3& pos) { position = pos; }
-  void SetRotation(const glm::vec3& rot) { rotation = rot; }
-  void SetScale(const glm::vec3& s) { scale = s; }
-  const glm::vec3& GetPosition() const { return position; }
-  const glm::vec3& GetRotation() const { return rotation; }
-  const glm::vec3& GetScale() const { return scale; }
+  void SetPosition(const glm::vec3& pos) { transform.SetPosition(pos); }
+  void SetRotation(const glm::vec3& rot) { transform.SetRotation(rot); }
+  void SetScale(const glm::vec3& s) { transform.SetScale(s); }
+  const glm::vec3& GetPosition() const { return transform.GetPosition(); }
+  const glm::vec3& GetRotation() const { return transform.GetRotation(); }
+  const glm::vec3& GetScale() const { return transform.GetScale(); }
   const std::string& GetId() const { return id; }
 
   // InspectProvider implementation
@@ -41,9 +42,7 @@ public:
   std::string GetInspectDisplayName() const override;
 
 private:
-  glm::vec3 position;
-  glm::vec3 rotation;
-  glm::vec3 scale;
+  Transform transform;
   bool visible = true;
 
   glm::mat4 BuildModelMatrix() const;

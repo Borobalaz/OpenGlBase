@@ -29,7 +29,7 @@ class OpenGLViewportWidget : public QOpenGLWidget
   Q_PROPERTY(RenderStatistics *renderStatistics READ renderStatistics NOTIFY renderStatisticsChanged)
 
 public:
-  explicit OpenGLViewportWidget(QWidget *parent = nullptr);
+  OpenGLViewportWidget(QWidget *parent = nullptr);
   ~OpenGLViewportWidget() override;
 
   RenderStatistics *renderStatistics() const;
@@ -54,7 +54,7 @@ protected:
    * @brief Initialize the 3D scene. Called once after OpenGL context is ready.
    * Subclasses should override this to set up their specific scene.
    */
-  virtual void initializeScene() = 0;
+  void initializeScene();
 
   // Scene management
   std::unique_ptr<Scene> scene;

@@ -9,7 +9,6 @@
 #include "Volume/FloatVolume.h"
 #include "Volume/VolumeFileLoader.h"
 
-#include <chrono>
 #include <cmath>
 #include <iostream>
 
@@ -20,14 +19,6 @@
 namespace
 {
   constexpr int kMaxLights = 16;
-
-  float SceneElapsedSeconds()
-  {
-    static const auto startTime = std::chrono::steady_clock::now();
-    const auto now = std::chrono::steady_clock::now();
-    const auto elapsed = now - startTime;
-    return std::chrono::duration<float>(elapsed).count();
-  }
 
   VolumeData CreateSeedVolumeData(int width, int height, int depth)
   {
@@ -52,36 +43,37 @@ Scene::Scene()
   AddInspectProvider(camera);
 
   // ------------- SHADERS -------------
-
+    std::shared_ptr<Shader> defaultShader = std::make_shared<Shader>(
+      "default",
+      "shaders/vertex.glsl",
+      "shaders/fragment.glsl"
+    );
   // ------------- MATERIALS -------------
 
   // ------------- GAME OBJECTS -------------
+  std::shared_ptr<GameObject> bunny = ModelLoader::LoadGameObject(
+    "assets/models/stanford_bunny.obj",
+    defaultShader
+  );
+  bunny->SetUpdate([bunny](float deltaTime)
+  {
+    const float rotationSpeed = glm::radians(20.0f); // 20 degrees per second
+    const glm::vec3 currentRotation = bunny->GetRotation();
+    bunny->SetRotation(currentRotation + glm::vec3(0.0f, rotationSpeed * deltaTime, 0.0f));
+  });
+  AddGameObject(bunny);
   
   // ------------- VOLUME -------------
 
   // ------------- LIGHTS -------------
-  std::shared_ptr<PointLight> light0 = std::make_shared<PointLight>(PointLight(
-    "point_0",
-    glm::vec3(0.0f, 0.0f, 2.0f),
-    glm::vec3(1.0f, 0.08f, 0.08f),
-    glm::vec3(0.9f, 0.9f, 0.9f),
+  std::shared_ptr<DirectionalLight> directionalLight = std::make_shared<DirectionalLight>(
+    "dirLight",
+    glm::vec3(0.2f, 0.2f, 0.2f),
+    glm::vec3(0.5f, 0.5f, 0.5f),
     glm::vec3(1.0f, 1.0f, 1.0f),
-    1.0f,
-    0.09f,
-    0.032f
-  ));
-  AddLight(light0);
-  AddInspectProvider(light0);
-
-  std::shared_ptr<DirectionalLight> light1 = std::make_shared<DirectionalLight>(DirectionalLight(
-    "directional_0",
-    glm::vec3(-0.2f, -1.0f, -0.3f),
-    glm::vec3(0.05f, 0.05f, 0.05f),
-    glm::vec3(0.45f, 0.45f, 0.45f),
-    glm::vec3(0.35f, 0.35f, 0.35f)
-  ));
-  AddLight(light1);
-  AddInspectProvider(light1);
+    glm::vec3(-1.0f, -1.0f, -1.0f)
+  );
+  AddLight(directionalLight);
 }
 
 /**
@@ -109,32 +101,19 @@ void Scene::Update(float deltaTime)
   {
     camera->Update(deltaTime);
   }
-  for (const auto& gameObject : gameObjects)
+  for (const auto& updateable : updateables)
   {
-    // gameObject->rotation += glm::vec3(deltaTime / 2, deltaTime / 2, deltaTime / 2);
+    if (updateable)
+    {
+      updateable->Update(deltaTime);
+    }
   }
 
   for (const auto& light : lights)
   {
-    // circularly move the point light around the origin
-    if (auto pointLight = std::dynamic_pointer_cast<PointLight>(light))
+    if (light)
     {
-      const float radius = 2.0f;
-      const float speed = 0.5f; // radians per second
-      const float angle = SceneElapsedSeconds() * speed;
-      pointLight->position =
-        glm::vec3(std::cos(angle) * radius, 0.0f, std::sin(angle) * radius);
-    }
-  }
-
-  for (const auto& volume : volumes)
-  {
-    if (volume)
-    {
-      if (std::shared_ptr<Shader> shader = volume->getShader())
-      {
-        (*shader)["time"] = SceneElapsedSeconds();
-      }
+      light->Update(deltaTime);
     }
   }
 
@@ -216,12 +195,12 @@ void Scene::Render()
     frameUniforms.AddProvider(*enabledLights[static_cast<size_t>(i)]);
   }
 
-  // Draw game objects
-  for (const auto& gameObject : gameObjects)
+  // Draw scene drawables
+  for (const auto& drawable : drawables)
   {
-    if (gameObject)
+    if (drawable)
     {
-      gameObject->Draw(frameUniforms);
+      drawable->Draw(frameUniforms);
     }
   }
 
@@ -233,15 +212,48 @@ void Scene::Render()
       skybox->Draw(*camera);
     }
   }
+}
 
-  // Draw volumes
-  for (const auto& volume : volumes)
-  {
-    if (volume)
+/**
+ * @brief Clear all game objects from the scene
+ * 
+ */
+void Scene::ClearGameObjects()
+{
+  drawables.erase(std::remove_if(drawables.begin(), drawables.end(),
+    [](const std::shared_ptr<IDrawable>& drawable)
     {
-      volume->Draw(frameUniforms);
-    }
-  }
+      return std::dynamic_pointer_cast<GameObject>(drawable) != nullptr;
+    }),
+    drawables.end());
+
+  updateables.erase(std::remove_if(updateables.begin(), updateables.end(),
+    [](const std::shared_ptr<IUpdateable>& updateable)
+    {
+      return std::dynamic_pointer_cast<GameObject>(updateable) != nullptr;
+    }),
+    updateables.end());
+}
+
+/**
+ * @brief Clear all volumes from the scene
+ * 
+ */
+void Scene::ClearVolumes()
+{
+  drawables.erase(std::remove_if(drawables.begin(), drawables.end(),
+    [](const std::shared_ptr<IDrawable>& drawable)
+    {
+      return std::dynamic_pointer_cast<Volume>(drawable) != nullptr;
+    }),
+    drawables.end());
+
+  updateables.erase(std::remove_if(updateables.begin(), updateables.end(),
+    [](const std::shared_ptr<IUpdateable>& updateable)
+    {
+      return std::dynamic_pointer_cast<Volume>(updateable) != nullptr;
+    }),
+    updateables.end());
 }
 
 /**
@@ -348,6 +360,11 @@ Scene::~Scene()
 {
 }
 
+/**
+ * @brief Rebuild the inspect providers for the scene, including the scene itself, 
+ *  the camera, and all lights and drawables that implement InspectProvider
+ * 
+ */
 void Scene::RebuildInspectProviders()
 {
   inspectProviders.clear();
@@ -358,8 +375,21 @@ void Scene::RebuildInspectProviders()
   {
     AddInspectProvider(light);
   }
+
+  for (const auto& drawable : drawables)
+  {
+    if (auto provider = std::dynamic_pointer_cast<InspectProvider>(drawable))
+    {
+      AddInspectProvider(provider);
+    }
+  }
 }
 
+/**
+ * @brief Get the inspect fields for the scene, clear color in this case
+ * 
+ * @return std::vector<std::shared_ptr<IInspectWidget>> 
+ */
 std::vector<std::shared_ptr<IInspectWidget>> Scene::GetInspectFields()
 {
   std::vector<std::shared_ptr<IInspectWidget>> fields;

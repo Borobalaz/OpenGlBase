@@ -13,7 +13,7 @@
  * 
  */
 Camera::Camera()
-  : position(0.0f, 0.0f, 3.0f),
+  : transform(glm::vec3(0.0f, 0.0f, 3.0f), glm::vec3(0.0f, 0.0f, -1.0f), glm::vec3(1.0f, 1.0f, 1.0f)),
     front(0.0f, 0.0f, -1.0f),
     up(0.0f, 1.0f, 0.0f),
     aspect(4.0f / 3.0f),
@@ -58,6 +58,8 @@ void Camera::Apply(Shader& shader) const
     shader.SetMat4(projectionUniformName, GetProjectionMatrix());
   }
 
+  const glm::vec3 forward = GetForwardVector();
+
   if (shader.HasUniform(viewPositionUniformName))
   {
     shader.SetVec3(viewPositionUniformName, GetPosition());
@@ -65,7 +67,7 @@ void Camera::Apply(Shader& shader) const
 
   if (shader.HasUniform(focalPointUniformName))
   {
-    shader.SetVec3(focalPointUniformName, GetPosition() + front * focalDistance);
+    shader.SetVec3(focalPointUniformName, GetPosition() + forward * focalDistance);
   }
 
   if (shader.HasUniform(focalSizeUniformName))
@@ -81,82 +83,7 @@ std::string Camera::GetInspectDisplayName() const
 
 std::vector<std::shared_ptr<IInspectWidget>> Camera::GetInspectFields()
 {
-  auto positionField = std::make_shared<InspectVec3FieldWidget>(
-    "position",
-    "Position",
-    "Transform",
-    false
-  );
-  positionField->valueGetter = [this]() -> QVariant
-  {
-    return QVariantList{position.x, position.y, position.z};
-  };
-  positionField->SetValue(positionField->GetValue());
-  positionField->valueChangedCallback = [this](const QVariant& value)
-  {
-    const QVariantList list = value.toList();
-    if (list.size() >= 3)
-    {
-      position = glm::vec3(static_cast<float>(list[0].toDouble()),
-                           static_cast<float>(list[1].toDouble()),
-                           static_cast<float>(list[2].toDouble()));
-      NotifyMovementCameraStateChanged();
-    }
-  };
-
-  auto frontField = std::make_shared<InspectVec3FieldWidget>(
-    "front",
-    "Front",
-    "Transform",
-    false
-  );
-  frontField->valueGetter = [this]() -> QVariant
-  {
-    return QVariantList{front.x, front.y, front.z};
-  };
-  frontField->SetValue(frontField->GetValue());
-  frontField->valueChangedCallback = [this](const QVariant& value)
-  {
-    const QVariantList list = value.toList();
-    if (list.size() >= 3)
-    {
-      glm::vec3 updatedFront(static_cast<float>(list[0].toDouble()),
-                             static_cast<float>(list[1].toDouble()),
-                             static_cast<float>(list[2].toDouble()));
-      if (glm::length(updatedFront) > 1e-5f)
-      {
-        front = glm::normalize(updatedFront);
-        NotifyMovementCameraStateChanged();
-      }
-    }
-  };
-
-  auto upField = std::make_shared<InspectVec3FieldWidget>(
-    "up",
-    "Up",
-    "Transform",
-    false
-  );
-  upField->valueGetter = [this]() -> QVariant
-  {
-    return QVariantList{up.x, up.y, up.z};
-  };
-  upField->SetValue(upField->GetValue());
-  upField->valueChangedCallback = [this](const QVariant& value)
-  {
-    const QVariantList list = value.toList();
-    if (list.size() >= 3)
-    {
-      glm::vec3 updatedUp(static_cast<float>(list[0].toDouble()),
-                          static_cast<float>(list[1].toDouble()),
-                          static_cast<float>(list[2].toDouble()));
-      if (glm::length(updatedUp) > 1e-5f)
-      {
-        up = glm::normalize(updatedUp);
-        NotifyMovementCameraStateChanged();
-      }
-    }
-  };
+  std::vector<std::shared_ptr<IInspectWidget>> fields = transform.GetInspectFields();
 
   auto aspectField = std::make_shared<InspectNumberFieldWidget>(
     "aspect",
@@ -208,15 +135,11 @@ std::vector<std::shared_ptr<IInspectWidget>> Camera::GetInspectFields()
   );
   movementComponentField->SetValue(moveComponent ? "Attached" : "None");
 
-  return {
-    positionField,
-    frontField,
-    upField,
-    aspectField,
-    focalDistanceField,
-    focalSizeField,
-    movementComponentField
-  };
+  fields.push_back(aspectField);
+  fields.push_back(focalDistanceField);
+  fields.push_back(focalSizeField);
+  fields.push_back(movementComponentField);
+  return fields;
 }
 
 /**
@@ -226,7 +149,7 @@ std::vector<std::shared_ptr<IInspectWidget>> Camera::GetInspectFields()
  */
 void Camera::SetPosition(const glm::vec3& pos)
 {
-  position = pos;
+  transform.SetPosition(pos);
   NotifyMovementCameraStateChanged();
 }
 
@@ -237,7 +160,7 @@ void Camera::SetPosition(const glm::vec3& pos)
  */
 glm::vec3 Camera::GetPosition() const
 {
-  return position;
+  return transform.GetPosition();
 }
 
 void Camera::SetAspect(float newAspect)
@@ -292,7 +215,11 @@ void Camera::Move(float deltaTime)
 {
   if (moveComponent)
   {
+    front = GetForwardVector();
+    glm::vec3 position = transform.GetPosition();
     moveComponent->Update(deltaTime, position, front, up, focalDistance, focalSize);
+    transform.SetPosition(position);
+    transform.SetOrientation(front);
   }
 }
 
@@ -300,6 +227,17 @@ void Camera::NotifyMovementCameraStateChanged()
 {
   if (moveComponent)
   {
-    moveComponent->OnCameraStateChanged(position, front, up);
+    moveComponent->OnCameraStateChanged(transform.GetPosition(), front, up);
   }
+}
+
+glm::vec3 Camera::GetForwardVector() const
+{
+  const glm::vec3 orientation = transform.GetOrientation();
+  if (glm::length(orientation) > 1e-5f)
+  {
+    return glm::normalize(orientation);
+  }
+
+  return front;
 }

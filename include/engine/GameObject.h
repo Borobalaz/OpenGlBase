@@ -19,9 +19,11 @@ class GameObject : public UniformProvider, public IDrawable, public IUpdateable,
 {
 public:
   explicit GameObject(const std::string& id);
+  GameObject(std::shared_ptr<Geometry> geometry, std::shared_ptr<Material> material, const std::string& id = std::string());
   ~GameObject();
 
   void AddMesh(std::shared_ptr<Mesh> mesh);
+  void SetMaterial(std::shared_ptr<Material> material);
 
   void Draw(const UniformProvider& frameUniforms) const override;
   void Apply(Shader& shader) const override;

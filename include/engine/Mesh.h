@@ -2,6 +2,7 @@
 
 #include <memory>
 
+#include "IDrawable.h"
 #include "Geometry/Geometry.h"
 #include "Material.h"
 #include "Uniform/UniformProvider.h"

@@ -4,6 +4,7 @@
 
 #include "Mesh.h"
 #include "Geometry/ModelLoader.h"
+#include "Geometry/SphereGeometry.h"
 #include "Texture/Skybox.h"
 #include "Texture/Texture2D.h"
 #include "Volume/FloatVolume.h"
@@ -42,27 +43,46 @@ Scene::Scene()
   AddInspectProvider(this);
   AddInspectProvider(camera);
 
-  // ------------- SHADERS -------------
-    std::shared_ptr<Shader> defaultShader = std::make_shared<Shader>(
-      "default",
-      "shaders/vertex.glsl",
-      "shaders/fragment.glsl"
-    );
+  // ------------- SHADERS (PBR) -------------
+  std::shared_ptr<Shader> defaultShader = std::make_shared<Shader>(
+    "default",
+    "shaders/vertex.glsl",
+    "shaders/pbr_fragment.glsl"
+  );
   // ------------- MATERIALS -------------
+  std::shared_ptr<Material> boneMaterial = std::make_shared<Material>(defaultShader);
+  boneMaterial->SetAlbedoTextureFromFile("assets/materials/bone/bone_albedo.png");
+  boneMaterial->SetNormalTextureFromFile("assets/materials/bone/bone_normal-ogl.png");
+  boneMaterial->SetRoughnessTextureFromFile("assets/materials/bone/bone_roughness.png");
+  boneMaterial->SetMetallicTextureFromFile("assets/materials/bone/bone_metallic.png");
+
+  std::shared_ptr<Material> donutMaterial = std::make_shared<Material>(defaultShader);
+  donutMaterial->SetAlbedoTextureFromFile("assets/materials/donut/Poliigon_FoodPastryDonut_10737_BaseColor.jpg");
+  donutMaterial->SetNormalTextureFromFile("assets/materials/donut/Poliigon_FoodPastryDonut_10737_Normal.png");
+  donutMaterial->SetRoughnessTextureFromFile("assets/materials/donut/Poliigon_FoodPastryDonut_10737_Roughness.jpg");
+  donutMaterial->SetMetallicTextureFromFile("assets/materials/donut/Poliigon_FoodPastryDonut_10737_Metallic.jpg");
 
   // ------------- GAME OBJECTS -------------
-  std::shared_ptr<GameObject> bunny = ModelLoader::LoadGameObject(
-    "assets/models/stanford_bunny.obj",
-    defaultShader
-  );
-  bunny->SetUpdate([bunny](float deltaTime)
-  {
-    const float rotationSpeed = glm::radians(20.0f); // 20 degrees per second
-    const glm::vec3 currentRotation = bunny->GetRotation();
-    bunny->SetRotation(currentRotation + glm::vec3(0.0f, rotationSpeed * deltaTime, 0.0f));
-  });
-  AddGameObject(bunny);
-  
+  auto sphere1 = std::make_shared<GameObject>(
+    std::make_shared<SphereGeometry>(0.2f, 64, 32),
+    boneMaterial,
+    "sphere1");
+
+  auto sphere2 = std::make_shared<GameObject>(
+    std::make_shared<SphereGeometry>(0.2f, 64, 32),
+    donutMaterial,
+    "sphere2");
+  sphere2->SetPosition(glm::vec3(0.5f, 0.0f, 0.0f));
+
+  //sphere1->SetUpdate([sphere1](float deltaTime)
+  //{
+  //  const float rotationSpeed = glm::radians(5.0f); // 20 degrees per second
+  //  const glm::vec3 currentRotation = sphere1->GetRotation();
+  //  sphere1->SetRotation(currentRotation + glm::vec3(0.0f, rotationSpeed * deltaTime, 0.0f));
+  //});
+  AddGameObject(sphere1);
+  AddGameObject(sphere2);
+
   // ------------- VOLUME -------------
 
   // ------------- LIGHTS -------------

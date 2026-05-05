@@ -1,5 +1,7 @@
 #include "Mesh.h"
 
+#include "Uniform/CompositeUniformProvider.h"
+
 Mesh::Mesh(std::shared_ptr<Geometry> geometry,
            std::shared_ptr<Material> material)
   : geometry(std::move(geometry)),
@@ -32,7 +34,10 @@ void Mesh::SetMaterial(std::shared_ptr<Material> material)
 /**
  * @brief Render the mesh.
  * 
- * @param uniformProvider 
+ * Composes frame-level uniforms (camera, lights) with material properties
+ * into a single composite provider to bind to the shader.
+ * 
+ * @param uniformProvider Frame-level uniform provider (lights, camera, etc.)
  */
 void Mesh::Draw(const UniformProvider& uniformProvider) const
 {
@@ -41,9 +46,14 @@ void Mesh::Draw(const UniformProvider& uniformProvider) const
     return;
   }
 
-  material->Bind();
-
   Shader& shader = material->GetShader();
-  uniformProvider.Apply(shader);
+  shader.Use();
+
+  // Compose frame uniforms with material properties
+  CompositeUniformProvider composite;
+  composite.AddProvider(uniformProvider);  // Lights, camera, scene
+  composite.AddProvider(*material);         // Material PBR properties and textures
+
+  composite.Apply(shader);
   geometry->Draw(shader);
 }

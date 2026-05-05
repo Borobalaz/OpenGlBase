@@ -16,6 +16,16 @@ GameObject::GameObject(const std::string& id)
 {
 }
 
+GameObject::GameObject(std::shared_ptr<Geometry> geometry, std::shared_ptr<Material> material, const std::string& id)
+  : id(id)
+{
+  if (geometry && material)
+  {
+    auto mesh = std::make_shared<Mesh>(geometry, material);
+    AddMesh(mesh);
+  }
+}
+
 GameObject::~GameObject()
 {
 }
@@ -33,6 +43,22 @@ void GameObject::AddMesh(std::shared_ptr<Mesh> mesh)
   }
 
   meshes.push_back(std::move(mesh));
+}
+
+void GameObject::SetMaterial(std::shared_ptr<Material> material)
+{
+  if (!material)
+  {
+    return;
+  }
+
+  for (const auto& mesh : meshes)
+  {
+    if (mesh)
+    {
+      mesh->SetMaterial(material);
+    }
+  }
 }
 
 /**

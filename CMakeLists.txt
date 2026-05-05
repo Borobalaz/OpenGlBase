@@ -75,3 +75,18 @@ if (ITK_FOUND)
     target_compile_definitions(app_qt PRIVATE CONNECTOMICS_ENABLE_ITK_IO=1)
 endif()
 
+# Copy shader files to build output directory (same location as executable)
+add_custom_command(TARGET app_qt POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+            "${CMAKE_CURRENT_SOURCE_DIR}/shaders"
+            "$<TARGET_FILE_DIR:app_qt>/shaders"
+    COMMENT "Copying shaders to build output..."
+)
+
+# Also copy assets (models, textures, volumes)
+add_custom_command(TARGET app_qt POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+            "${CMAKE_CURRENT_SOURCE_DIR}/assets"
+            "$<TARGET_FILE_DIR:app_qt>/assets"
+    COMMENT "Copying assets to build output..."
+)

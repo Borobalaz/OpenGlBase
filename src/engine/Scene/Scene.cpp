@@ -7,6 +7,7 @@
 #include "Geometry/SphereGeometry.h"
 #include "Texture/Skybox.h"
 #include "Texture/Texture2D.h"
+#include "Renderer/ForwardRenderer.h"
 #include "Volume/FloatVolume.h"
 #include "Volume/VolumeFileLoader.h"
 
@@ -20,16 +21,6 @@
 namespace
 {
   constexpr int kMaxLights = 16;
-
-  VolumeData CreateSeedVolumeData(int width, int height, int depth)
-  {
-    VolumeData data(width, height, depth);
-    for (float& voxel : data.GetVoxels())
-    {
-      voxel = 1.0f;
-    }
-    return data;
-  }
 }
 
 /**
@@ -40,6 +31,8 @@ Scene::Scene()
   : clearColor{1.0f, 1.0f, 1.0f, 1.0f},
     camera(std::make_shared<PerspectiveCamera>(45.0f, 800.0f / 600.0f, 0.1f, 100.0f))
 {
+  renderer = std::make_unique<ForwardRenderer>();
+
   AddInspectProvider(this);
   AddInspectProvider(camera);
 
@@ -141,6 +134,16 @@ void Scene::Update(float deltaTime)
   inputState.ResetFrameTransientState();
 }
 
+void Scene::Render()
+{
+  glClearColor(clearColor[0], clearColor[1], clearColor[2], clearColor[3]);
+
+  if (renderer)
+  {
+    renderer->Render(*this);
+  }
+}
+
 /**
  * @brief Apply the scene's uniforms to the given shader
  * 
@@ -161,77 +164,6 @@ void Scene::Apply(Shader& shader) const
     }));
   const int lightCount = static_cast<int>(std::min(enabledCount, kMaxLights));
   shader.SetInt("lightCount", lightCount);
-}
-
-/**
- * @brief Scene renderer function
- * 
- */
-void Scene::Render()
-{
-  // Qt Quick can reset GL state between frames, so enforce depth state before drawing.
-  glEnable(GL_DEPTH_TEST);
-  glDepthFunc(GL_LESS);
-  glDepthMask(GL_TRUE);
-  glClearColor(clearColor[0], clearColor[1], clearColor[2], clearColor[3]);
-
-  glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-  
-  // Count active lights
-  const int enabledCount = static_cast<int>(std::count_if(lights.begin(), lights.end(),
-    [](const auto& lightEntry)
-    {
-      const std::shared_ptr<Light>& light = lightEntry;
-      return light && light->GetEnabled();
-    }));
-  const int lightCount = static_cast<int>(std::min(enabledCount, kMaxLights));
-
-  std::vector<std::shared_ptr<Light>> enabledLights;
-  enabledLights.reserve(static_cast<size_t>(lightCount));
-  for (const auto& light : lights)
-  {
-    if (!light || !light->GetEnabled())
-    {
-      continue;
-    }
-
-    enabledLights.push_back(light);
-    if (static_cast<int>(enabledLights.size()) >= lightCount)
-    {
-      break;
-    }
-  }
-
-  // Set up frame uniforms
-  frameUniforms.ClearProviders();
-  frameUniforms.AddProvider(*this);
-  if (camera)
-  {
-    frameUniforms.AddProvider(*camera);
-  }
-  for (int i = 0; i < static_cast<int>(enabledLights.size()); ++i)
-  {
-    enabledLights[static_cast<size_t>(i)]->SetUniformIndex(i);
-    frameUniforms.AddProvider(*enabledLights[static_cast<size_t>(i)]);
-  }
-
-  // Draw scene drawables
-  for (const auto& drawable : drawables)
-  {
-    if (drawable)
-    {
-      drawable->Draw(frameUniforms);
-    }
-  }
-
-  // Draw skybox
-  if (skybox != nullptr)
-  {
-    if (camera)
-    {
-      skybox->Draw(*camera);
-    }
-  }
 }
 
 /**
@@ -378,6 +310,53 @@ void Scene::Destroy()
  */
 Scene::~Scene()
 {
+}
+
+std::vector<RenderProxy> Scene::GetRenderProxies() const
+{
+  std::vector<RenderProxy> proxies;
+
+  CompositeUniformProvider sceneUniforms;
+  sceneUniforms.AddProvider(*this);
+  if (camera)
+  {
+    sceneUniforms.AddProvider(*camera);
+  }
+
+  int lightUniformIndex = 0;
+  for (const auto& light : lights)
+  {
+    if (!light || !light->GetEnabled())
+    {
+      continue;
+    }
+
+    light->SetUniformIndex(lightUniformIndex++);
+    sceneUniforms.AddProvider(*light);
+  }
+
+  for (const auto &drawable : drawables)
+  {
+    if (!drawable)
+    {
+      continue;
+    }
+
+    RenderProxy proxy;
+    proxy.frameUniforms = sceneUniforms;
+    proxy.preferredShader = nullptr;
+    proxy.geometry = nullptr;
+    proxy.visible = true;
+
+    drawable->BuildRenderProxy(proxy);
+
+    if (proxy.visible && proxy.geometry != nullptr)
+    {
+      proxies.push_back(proxy);
+    }
+  }
+
+  return proxies;
 }
 
 /**

@@ -6,6 +6,7 @@
 
 #include <glm/gtc/matrix_transform.hpp>
 
+#include "Renderer/RenderProxy.h"
 #include "Volume/VolumeTextureSet.h"
 #include "ui/widgets/inspect_fields/InspectCheckboxFieldWidget.h"
 #include "ui/widgets/inspect_fields/InspectNumberFieldWidget.h"
@@ -49,6 +50,21 @@ void Volume::Apply(Shader &shader) const
   {
     shader.SetInt("volume.textureCount", static_cast<int>(GetTextureSet().Size()));
   }
+}
+
+void Volume::BuildRenderProxy(RenderProxy& renderProxy) const
+{
+  if (!IsValid() || !visible)
+  {
+    renderProxy.visible = false;
+    return;
+  }
+
+  renderProxy.visible = true;
+  renderProxy.customDraw = [this, frameUniforms = renderProxy.frameUniforms]()
+  {
+    Draw(frameUniforms);
+  };
 }
 
 /**

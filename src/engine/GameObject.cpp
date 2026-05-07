@@ -7,6 +7,7 @@
 
 #include <cmath>
 
+#include "Renderer/RenderProxy.h"
 #include "Uniform/CompositeUniformProvider.h"
 #include "ui/widgets/inspect_fields/InspectCheckboxFieldWidget.h"
 #include "ui/widgets/inspect_fields/InspectVec3FieldWidget.h"
@@ -66,22 +67,32 @@ void GameObject::SetMaterial(std::shared_ptr<Material> material)
  *
  * @param frameUniforms
  */
-void GameObject::Draw(const UniformProvider &frameUniforms) const
+void GameObject::BuildRenderProxy(RenderProxy& context) const
 {
   if (meshes.empty() || !visible)
   {
+    context.visible = false;
     return;
   }
 
-  CompositeUniformProvider compositeProvider;
-  compositeProvider.AddProvider(frameUniforms);
-  compositeProvider.AddProvider(*this);
+  context.frameUniforms.AddProvider(*this);
 
   for (const auto &mesh : meshes)
   {
     if (mesh)
     {
-      mesh->Draw(compositeProvider);
+      if (const std::shared_ptr<Geometry> geometry = mesh->GetGeometry())
+      {
+        context.geometry = geometry.get();
+      }
+
+      if (const std::shared_ptr<Material> material = mesh->GetMaterial())
+      {
+        context.frameUniforms.AddProvider(*material);
+        context.preferredShader = &material->GetShader();
+      }
+
+      break;
     }
   }
 }

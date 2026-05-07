@@ -7,6 +7,7 @@
 #include <glm/glm.hpp>
 
 #include "IDrawable.h"
+#include "Renderer/RenderProxy.h"
 #include "IUpdateable.h"
 #include "Shader.h"
 #include "Transform.h"
@@ -21,8 +22,8 @@ class Volume : public UniformProvider, public IDrawable, public IUpdateable, pub
 public:
   virtual ~Volume() = default;
 
-  void Apply(Shader &shader) const override;
-  void Draw(const UniformProvider &frameUniforms) const override;
+  void Apply(Shader &shader) const;
+  void BuildRenderProxy(RenderProxy& renderProxy) const;
   bool IsValid() const;
 
   const std::shared_ptr<Shader> &getShader() const { return shader; }
@@ -39,12 +40,12 @@ public:
   const std::string &GetId() const { return id; }
 
   // InspectProvider implementation
-  bool HasVisibility() const override { return true; }
-  bool IsVisible() const override { return visible; }
-  std::optional<float> CastRay(const glm::vec3 &rayOrigin, const glm::vec3 &rayDirection) const override;
+  bool HasVisibility() const { return true; }
+  bool IsVisible() const { return visible; }
+  std::optional<float> CastRay(const glm::vec3 &rayOrigin, const glm::vec3 &rayDirection) const;
   void SetVisible(bool newVisible) { visible = newVisible; }
-  std::string GetInspectDisplayName() const override;
-  std::vector<std::shared_ptr<IInspectWidget>> GetInspectFields() override;
+  std::string GetInspectDisplayName() const;
+  std::vector<std::shared_ptr<IInspectWidget>> GetInspectFields();
 
 private:
   const std::string id;
@@ -59,6 +60,7 @@ protected:
   std::shared_ptr<Shader> shader;
 
   glm::mat4 BuildModelMatrix() const;
+  void Draw(const UniformProvider &frameUniforms) const;
 
   // Only derived classes can construct Volume. 
   // The reason is that only derived classes can be instantiated, 

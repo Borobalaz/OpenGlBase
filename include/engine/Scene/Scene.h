@@ -23,12 +23,14 @@
 #include "IUpdateable.h"
 #include "ui/widgets/inspect_fields/InspectProvider.h"
 #include <memory>
+#include "Renderer/RenderProxy.h"
 
 class Shader;
 class Triangle;
 class Skybox;
 class TextureCube;
 class Volume;
+class Renderer;
 
 class Scene : public UniformProvider, InspectProvider
 {
@@ -50,6 +52,9 @@ public:
   // Camera management
   std::shared_ptr<Camera> GetCamera() { return camera; }
   void SetCameraAspect(float aspect);
+
+  // Render proxy gathering
+  std::vector<RenderProxy> GetRenderProxies() const;
 
   // Input state management
   const InputState& GetInputState() const { return inputState; }
@@ -109,6 +114,7 @@ private:
 
   std::shared_ptr<Camera> camera;
   CompositeUniformProvider frameUniforms;
+  std::unique_ptr<Renderer> renderer;
 
   std::shared_ptr<Skybox> skybox;
 

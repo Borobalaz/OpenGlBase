@@ -15,6 +15,8 @@
 #include "ui/widgets/inspect_fields/InspectProvider.h"
 #include "ui/widgets/inspect_fields/IInspectWidget.h"
 
+struct RenderProxy;
+
 class GameObject : public UniformProvider, public IDrawable, public IUpdateable, public InspectProvider
 {
 public:
@@ -25,7 +27,7 @@ public:
   void AddMesh(std::shared_ptr<Mesh> mesh);
   void SetMaterial(std::shared_ptr<Material> material);
 
-  void Draw(const UniformProvider& frameUniforms) const override;
+  void BuildRenderProxy(RenderProxy& context) const override;
   void Apply(Shader& shader) const override;
 
   void SetPosition(const glm::vec3& pos) { transform.SetPosition(pos); }

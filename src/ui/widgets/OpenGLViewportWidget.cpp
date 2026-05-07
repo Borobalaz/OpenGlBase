@@ -196,6 +196,9 @@ void OpenGLViewportWidget::paintGL()
   {
     renderStatisticsObject->recordFrame(fps, renderTimeMs, elapsedTimer.nsecsElapsed());
   }
+
+  // Keep requesting frames so the viewport animates continuously.
+  update();
 }
 
 /************************************************** 

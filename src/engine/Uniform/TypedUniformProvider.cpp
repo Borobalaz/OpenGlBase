@@ -1,4 +1,4 @@
-#include "TypedUniformProvider.h"
+#include "Uniform/TypedUniformProvider.h"
 
 #include <iostream>
 #include <type_traits>
@@ -87,9 +87,6 @@ void TypedUniformProvider::Apply(Shader& shader) const
   {
     if (!shader.HasUniform(name))
     {
-      std::cout << "Skipping uniform '" << name
-                << "' because it is not part of shader "
-                << shader.ID << std::endl;
       continue;
     }
 

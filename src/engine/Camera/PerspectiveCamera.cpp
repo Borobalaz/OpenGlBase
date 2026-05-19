@@ -1,4 +1,4 @@
-#include "PerspectiveCamera.h"
+#include "Camera/PerspectiveCamera.h"
 #include <glm/gtc/matrix_transform.hpp>
 
 PerspectiveCamera::PerspectiveCamera(

@@ -107,7 +107,12 @@ Shader::UniformSlotProxy& Shader::UniformSlotProxy::operator=(const glm::mat4& v
  * @param vertexPath 
  * @param fragmentPath 
  */
-Shader::Shader(const std::string& vertexPath, const std::string& fragmentPath)
+Shader::Shader(const std::string& id,
+               const std::string& vertexPath,
+               const std::string& fragmentPath)
+  : vertexPath(vertexPath),
+    fragmentPath(fragmentPath),
+    id(id)
 {
   std::string vertexCode = ReadFile(vertexPath);
   std::string fragmentCode = ReadFile(fragmentPath);
@@ -149,6 +154,10 @@ Shader::Shader(const std::string& vertexPath, const std::string& fragmentPath)
 
   glDeleteShader(vertexShader);
   glDeleteShader(fragmentShader);
+
+  // Initialize file modification times for hot reload
+  lastVertexModTime = GetFileModTime(vertexPath);
+  lastFragmentModTime = GetFileModTime(fragmentPath);
 }
 
 /**
@@ -162,14 +171,17 @@ Shader::UniformSlotProxy Shader::operator[](const std::string& name)
   return UniformSlotProxy(*this, name);
 }
 
-
-
 /**
  * @brief Set the shader as active
  * 
  */
 void Shader::Use() const
 {
+  // Clear any stale GL error so post-call checks reflect glUseProgram itself.
+  while (glGetError() != GL_NO_ERROR)
+  {
+  }
+
   glUseProgram(ID);
   GLenum error = glGetError();
   if (error != GL_NO_ERROR) {
@@ -181,11 +193,6 @@ void Shader::Use() const
     const std::string uniformName = ResolveStoredUniformName(*this, name);
     if (uniformName.empty())
     {
-      std::cout << "Skipping uniform '" << name
-                << "' because neither '" << name
-                << "' nor 'shader." << name
-                << "' is part of shader "
-                << ID << std::endl;
       continue;
     }
 
@@ -365,21 +372,14 @@ void Shader::SetTexture(const std::string& name, int unit) const
   SetInt(name, unit);
 }
 
-void Shader::SetUniformUiFloatRange(const std::string& name, float minValue, float maxValue, float speed)
-{
-  UniformUiConfig& config = uniformUiConfigs[name];
-  config.minFloat = minValue;
-  config.maxFloat = maxValue;
-  config.speed = speed;
-}
 
-void Shader::SetUniformUiIntRange(const std::string& name, int minValue, int maxValue)
-{
-  UniformUiConfig& config = uniformUiConfigs[name];
-  config.minInt = minValue;
-  config.maxInt = maxValue;
-}
-
+/**
+ * @brief Get the UniformInfo for a uniform by name, if it exists. 
+ *        This is the name, type, size, and location of the uniform as reported by OpenGL.  
+ * 
+ * @param name 
+ * @return std::optional<UniformInfo> 
+ */
 std::optional<UniformInfo> Shader::GetUniformInfo(const std::string& name) const
 {
   const auto it = uniformsByName.find(name);
@@ -391,141 +391,32 @@ std::optional<UniformInfo> Shader::GetUniformInfo(const std::string& name) const
   return it->second;
 }
 
+/**
+ * @brief Check if the shader has a uniform with the given name
+ * 
+ * @param name 
+ * @return true 
+ * @return false 
+ */
 bool Shader::HasUniform(const std::string& name) const
 {
   return GetUniformInfo(name).has_value();
 }
 
+/**
+ * @brief Get all uniform infos, indexed by uniform name. 
+ *        This is the name, type, size, and location of each uniform as reported by OpenGL.
+ * 
+ * @return const std::unordered_map<std::string, UniformInfo>& 
+ */
 const std::unordered_map<std::string, UniformInfo>& Shader::GetUniformInfos() const
 {
   return uniformsByName;
 }
 
-/**
- * @brief IInspectable implementation for Shader, collects stored uniform values as UI fields
- * 
- * @param out 
- * @param groupPrefix 
- */
-void Shader::CollectInspectableFields(std::vector<UiField>& out, const std::string& groupPrefix)
+const std::map<std::string, Shader::UniformValue>& Shader::GetStoredUniforms() const
 {
-  for (const auto& [name, value] : storedUniforms)
-  {
-    const auto uiConfigIt = uniformUiConfigs.find(name);
-    const UniformUiConfig* uiConfig = (uiConfigIt != uniformUiConfigs.end()) ? &uiConfigIt->second : nullptr;
-
-    UiField field;
-    field.group = groupPrefix;
-    field.label = name;
-
-    // Boolean type
-    if (std::holds_alternative<bool>(value))
-    {
-      field.kind = UiFieldKind::Bool;
-      field.getter = [this, name]() -> UiFieldValue
-      {
-        const auto it = storedUniforms.find(name);
-        if (it == storedUniforms.end() || !std::holds_alternative<bool>(it->second))
-        {
-          return false;
-        }
-
-        return std::get<bool>(it->second);
-      };
-      field.setter = [this, name](const UiFieldValue& uiValue)
-      {
-        if (!std::holds_alternative<bool>(uiValue))
-        {
-          return;
-        }
-
-        storedUniforms[name] = std::get<bool>(uiValue);
-      };
-    }
-    // Integer type
-    else if (std::holds_alternative<int>(value))
-    {
-      field.kind = UiFieldKind::Int;
-      field.minInt = (uiConfig && uiConfig->minInt.has_value()) ? *uiConfig->minInt : 0;
-      field.maxInt = (uiConfig && uiConfig->maxInt.has_value()) ? *uiConfig->maxInt : 1024;
-      field.getter = [this, name]() -> UiFieldValue
-      {
-        const auto it = storedUniforms.find(name);
-        if (it == storedUniforms.end() || !std::holds_alternative<int>(it->second))
-        {
-          return 0;
-        }
-
-        return std::get<int>(it->second);
-      };
-      field.setter = [this, name](const UiFieldValue& uiValue)
-      {
-        if (!std::holds_alternative<int>(uiValue))
-        {
-          return;
-        }
-
-        storedUniforms[name] = std::get<int>(uiValue);
-      };
-    }
-    // Float type
-    else if (std::holds_alternative<float>(value))
-    {
-      field.kind = UiFieldKind::Float;
-      field.minFloat = (uiConfig && uiConfig->minFloat.has_value()) ? *uiConfig->minFloat : 0.0f;
-      field.maxFloat = (uiConfig && uiConfig->maxFloat.has_value()) ? *uiConfig->maxFloat : 10.0f;
-      field.speed = (uiConfig && uiConfig->speed.has_value()) ? *uiConfig->speed : 0.01f;
-      field.getter = [this, name]() -> UiFieldValue
-      {
-        const auto it = storedUniforms.find(name);
-        if (it == storedUniforms.end() || !std::holds_alternative<float>(it->second))
-        {
-          return 0.0f;
-        }
-
-        return std::get<float>(it->second);
-      };
-      field.setter = [this, name](const UiFieldValue& uiValue)
-      {
-        if (!std::holds_alternative<float>(uiValue))
-        {
-          return;
-        }
-
-        storedUniforms[name] = std::get<float>(uiValue);
-      };
-    }
-    // Vec3 type (could be color or a regular vec3)
-    else if (std::holds_alternative<glm::vec3>(value))
-    {
-      field.kind = UiFieldKind::Color3;
-      field.getter = [this, name]() -> UiFieldValue
-      {
-        const auto it = storedUniforms.find(name);
-        if (it == storedUniforms.end() || !std::holds_alternative<glm::vec3>(it->second))
-        {
-          return glm::vec3(0.0f, 0.0f, 0.0f);
-        }
-
-        return std::get<glm::vec3>(it->second);
-      };
-      field.setter = [this, name](const UiFieldValue& uiValue)
-      {
-        if (!std::holds_alternative<glm::vec3>(uiValue))
-        {
-          return;
-        }
-
-        storedUniforms[name] = std::get<glm::vec3>(uiValue);
-      };
-    }
-    else
-    {
-      continue;
-    }
-
-    out.push_back(std::move(field));
-  }
+  return storedUniforms;
 }
 
 /**
@@ -541,11 +432,6 @@ void Shader::Apply(Shader& shader) const
     const std::string uniformName = ResolveStoredUniformName(shader, name);
     if (uniformName.empty())
     {
-      std::cout << "Skipping uniform '" << name
-                << "' because neither '" << name
-                << "' nor 'shader." << name
-                << "' is part of shader "
-                << shader.ID << std::endl;
       continue;
     }
 
@@ -820,4 +706,114 @@ void Shader::LogUniformTypeMismatch(const std::string& name,
 Shader::~Shader()
 {
   glDeleteProgram(ID);
+}
+
+/**
+ * @brief Check if shader source files have changed and reload if needed.
+ *        This enables hot reload during development.
+ * 
+ * @return true if shader was reloaded, false otherwise
+ */
+bool Shader::ReloadIfChanged()
+{
+  if (ID == 0) {
+    return false; // Invalid shader, skip reload
+  }
+
+  auto vertexModTime = GetFileModTime(vertexPath);
+  auto fragmentModTime = GetFileModTime(fragmentPath);
+
+  // Check if either file has been modified since last load
+  if (vertexModTime == lastVertexModTime && 
+      fragmentModTime == lastFragmentModTime) {
+    return false; // No changes detected
+  }
+
+  std::cout << "Shader file change detected, reloading: " << vertexPath << ", " << fragmentPath << "\n";
+
+  std::string vertexCode = ReadFile(vertexPath);
+  std::string fragmentCode = ReadFile(fragmentPath);
+
+  if (vertexCode.empty() || fragmentCode.empty()) {
+    std::cout << "Failed to read shader files\n";
+    return false;
+  }
+
+  // Attempt to rebuild the shader program
+  if (RebuildProgram(vertexCode, fragmentCode)) {
+    lastVertexModTime = vertexModTime;
+    lastFragmentModTime = fragmentModTime;
+    std::cout << "Shader reloaded successfully\n";
+    return true;
+  }
+
+  std::cout << "Shader rebuild failed, keeping previous shader\n";
+  return false;
+}
+
+/**
+ * @brief Get the last modification time of a file.
+ * 
+ * @param path The file path
+ * @return std::filesystem::file_time_type The modification time
+ */
+std::filesystem::file_time_type Shader::GetFileModTime(const std::string& path) const
+{
+  try {
+    return std::filesystem::last_write_time(path);
+  } catch (const std::exception& e) {
+    std::cout << "Error getting modification time for " << path << ": " << e.what() << "\n";
+    return std::filesystem::file_time_type::min();
+  }
+}
+
+/**
+ * @brief Rebuild the shader program from new source code while preserving uniform state.
+ * 
+ * @param vertexCode The new vertex shader source
+ * @param fragmentCode The new fragment shader source
+ * @return true if rebuild succeeded, false otherwise
+ */
+bool Shader::RebuildProgram(const std::string& vertexCode, const std::string& fragmentCode)
+{
+  unsigned int vertexShader = Compile(GL_VERTEX_SHADER, vertexCode);
+  unsigned int fragmentShader = Compile(GL_FRAGMENT_SHADER, fragmentCode);
+
+  if (vertexShader == 0 || fragmentShader == 0) {
+    std::cout << "Shader compilation failed during rebuild\n";
+    if (vertexShader != 0) glDeleteShader(vertexShader);
+    if (fragmentShader != 0) glDeleteShader(fragmentShader);
+    return false;
+  }
+
+  unsigned int newProgram = glCreateProgram();
+  glAttachShader(newProgram, vertexShader);
+  glAttachShader(newProgram, fragmentShader);
+  glLinkProgram(newProgram);
+
+  int success;
+  char infoLog[512];
+  glGetProgramiv(newProgram, GL_LINK_STATUS, &success);
+
+  if (!success) {
+    glGetProgramInfoLog(newProgram, 512, NULL, infoLog);
+    std::cout << "Shader linking failed during rebuild:\n" << infoLog << std::endl;
+    glDeleteProgram(newProgram);
+    glDeleteShader(vertexShader);
+    glDeleteShader(fragmentShader);
+    return false;
+  }
+
+  // Successfully linked new program - replace old one
+  glDeleteProgram(ID);
+  ID = newProgram;
+
+  // Cache uniforms from the new program
+  CacheActiveUniforms();
+
+  // Clean up shader objects
+  glDeleteShader(vertexShader);
+  glDeleteShader(fragmentShader);
+
+  return true;
 }

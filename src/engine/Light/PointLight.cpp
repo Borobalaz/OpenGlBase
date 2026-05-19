@@ -1,12 +1,44 @@
-#include "PointLight.h"
+#include "Light/PointLight.h"
 
 #include <string>
 
 #include "Shader.h"
 
+/**
+ * @brief Construct a new Point Light:: Point Light object
+ * 
+ * @param position 
+ * @param ambient 
+ * @param diffuse 
+ * @param specular 
+ * @param constant 
+ * @param linear 
+ * @param quadratic 
+ */
+PointLight::PointLight(const std::string& id,
+                              const glm::vec3& position,
+                              const glm::vec3& ambient,
+                              const glm::vec3& diffuse,
+                              const glm::vec3& specular,
+                              float constant,
+                              float linear,
+                              float quadratic)
+  : Light(id, ambient, diffuse, specular),
+    position(position),
+    constant(constant),
+    linear(linear),
+    quadratic(quadratic)
+{
+}
+
+/**
+ * @brief 
+ * 
+ * @param shader 
+ */
 void PointLight::Apply(Shader& shader) const
 {
-  if (uniformIndex < 0)
+  if (uniformIndex < 0 || !enabled)
   {
     return;
   }
@@ -27,32 +59,4 @@ void PointLight::Apply(Shader& shader) const
   shader.SetFloat(prefix + ".constant", constant);
   shader.SetFloat(prefix + ".linear", linear);
   shader.SetFloat(prefix + ".quadratic", quadratic);
-}
-
-void PointLight::CollectInspectableFields(std::vector<UiField>& out, const std::string& groupPrefix)
-{
-  const std::string group = groupPrefix.empty() ? "PointLight" : groupPrefix;
-
-  UiField positionField;
-  positionField.group = group;
-  positionField.label = "Position";
-  positionField.kind = UiFieldKind::Vec3;
-  positionField.speed = 0.01f;
-  positionField.getter = [this]() -> UiFieldValue
-  {
-    return position;
-  };
-  positionField.setter = [this](const UiFieldValue& value)
-  {
-    if (!std::holds_alternative<glm::vec3>(value))
-    {
-      return;
-    }
-
-    position = std::get<glm::vec3>(value);
-  };
-  out.push_back(std::move(positionField));
-
-  // Collect base Light fields
-  Light::CollectInspectableFields(out, group);
 }

@@ -1,4 +1,4 @@
-#include "ModelLoader.h"
+#include "Geometry/ModelLoader.h"
 
 #include <filesystem>
 #include <iostream>
@@ -11,10 +11,10 @@
 
 #include <glm/glm.hpp>
 
-#include "ImportedGeometry.h"
+#include "Geometry/ImportedGeometry.h"
 #include "Material.h"
 #include "Mesh.h"
-#include "Texture2D.h"
+#include "Texture/Texture2D.h"
 
 namespace
 {
@@ -138,7 +138,8 @@ namespace
       vertices.push_back(Vertex{
         glm::vec3(aiPosition.x, aiPosition.y, aiPosition.z),
         normal,
-        texCoord
+        texCoord,
+        glm::vec3(0.0f)  // tangent - not used for model geometry
       });
     }
 
@@ -244,7 +245,8 @@ std::shared_ptr<GameObject> ModelLoader::LoadGameObject(const std::string& model
     return nullptr;
   }
 
-  std::shared_ptr<GameObject> gameObject = std::make_shared<GameObject>();
+  const std::string objectId = std::string("model:") + std::filesystem::path(modelPath).stem().string();
+  std::shared_ptr<GameObject> gameObject = std::make_shared<GameObject>(objectId);
   const std::filesystem::path modelDirectory =
     std::filesystem::path(modelPath).parent_path();
 

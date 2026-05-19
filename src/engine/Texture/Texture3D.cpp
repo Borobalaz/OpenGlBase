@@ -1,4 +1,4 @@
-#include "Texture3D.h"
+#include "Texture/Texture3D.h"
 
 #include <iostream>
 

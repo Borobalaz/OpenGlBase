@@ -1,4 +1,4 @@
-#include "Skybox.h"
+#include "Texture/Skybox.h"
 
 #include <glm/glm.hpp>
 
@@ -10,7 +10,7 @@ namespace
 Skybox::Skybox(std::shared_ptr<TextureCube> cubemap)
   : cubemap(std::move(cubemap)),
     geometry(std::make_shared<CubeGeometry>()),
-    shader(std::make_shared<Shader>("shaders/skybox_vertex.glsl", "shaders/skybox_fragment.glsl"))
+    shader(std::make_shared<Shader>("skybox_shader", "shaders/skybox_vertex.glsl", "shaders/skybox_fragment.glsl"))
 {
 }
 

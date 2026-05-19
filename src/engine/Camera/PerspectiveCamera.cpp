@@ -11,7 +11,7 @@ PerspectiveCamera::PerspectiveCamera(
     nearPlane(nearPlane),
     farPlane(farPlane)
 {
-  position = glm::vec3(0.0f, 0.0f, 3.0f);
+  transform.SetPosition(glm::vec3(0.0f, 0.0f, 3.0f));
   SetAspect(aspect);
 }
 
@@ -21,9 +21,10 @@ PerspectiveCamera::~PerspectiveCamera()
 
 glm::mat4 PerspectiveCamera::GetViewMatrix() const
 {
+  const glm::vec3 forward = GetForwardVector();
   return glm::lookAt(
-    position,
-    position + front,
+    GetPosition(),
+    GetPosition() + forward,
     up
   );
 }
@@ -45,5 +46,6 @@ void PerspectiveCamera::Update(float deltaTime)
 
 void PerspectiveCamera::LookAt(const glm::vec3& target)
 {
-  front = glm::normalize(target - position);
+  front = glm::normalize(target - GetPosition());
+  transform.SetOrientation(front);
 }

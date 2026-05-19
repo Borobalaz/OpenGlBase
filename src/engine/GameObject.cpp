@@ -7,16 +7,24 @@
 
 #include <cmath>
 
+#include "Renderer/RenderProxy.h"
 #include "Uniform/CompositeUniformProvider.h"
 #include "ui/widgets/inspect_fields/InspectCheckboxFieldWidget.h"
 #include "ui/widgets/inspect_fields/InspectVec3FieldWidget.h"
 
 GameObject::GameObject(const std::string& id)
-  : id(id),
-    position(glm::vec3(0.0f)),
-    rotation(glm::vec3(0.0f)),
-    scale(glm::vec3(1.0f))
+  : id(id)
 {
+}
+
+GameObject::GameObject(std::shared_ptr<Geometry> geometry, std::shared_ptr<Material> material, const std::string& id)
+  : id(id)
+{
+  if (geometry && material)
+  {
+    auto mesh = std::make_shared<Mesh>(geometry, material);
+    AddMesh(mesh);
+  }
 }
 
 GameObject::~GameObject()
@@ -38,13 +46,20 @@ void GameObject::AddMesh(std::shared_ptr<Mesh> mesh)
   meshes.push_back(std::move(mesh));
 }
 
-/**
- * @brief You know.
- *
- * @param deltaTime
- */
-void GameObject::Update(float deltaTime)
+void GameObject::SetMaterial(std::shared_ptr<Material> material)
 {
+  if (!material)
+  {
+    return;
+  }
+
+  for (const auto& mesh : meshes)
+  {
+    if (mesh)
+    {
+      mesh->SetMaterial(material);
+    }
+  }
 }
 
 /**
@@ -52,22 +67,32 @@ void GameObject::Update(float deltaTime)
  *
  * @param frameUniforms
  */
-void GameObject::Draw(const UniformProvider &frameUniforms) const
+void GameObject::BuildRenderProxy(RenderProxy& context) const
 {
   if (meshes.empty() || !visible)
   {
+    context.visible = false;
     return;
   }
 
-  CompositeUniformProvider compositeProvider;
-  compositeProvider.AddProvider(frameUniforms);
-  compositeProvider.AddProvider(*this);
+  context.frameUniforms.AddProvider(*this);
 
   for (const auto &mesh : meshes)
   {
     if (mesh)
     {
-      mesh->Draw(compositeProvider);
+      if (const std::shared_ptr<Geometry> geometry = mesh->GetGeometry())
+      {
+        context.geometry = geometry.get();
+      }
+
+      if (const std::shared_ptr<Material> material = mesh->GetMaterial())
+      {
+        context.frameUniforms.AddProvider(*material);
+        context.preferredShader = &material->GetShader();
+      }
+
+      break;
     }
   }
 }
@@ -84,19 +109,13 @@ void GameObject::Apply(Shader &shader) const
 }
 
 /**
- * @brief Construct the model matrix from the position, rotation and scale of the gameObject.
+ * @brief Construct the model matrix from the transform of the gameObject.
  *
  * @return glm::mat4
  */
 glm::mat4 GameObject::BuildModelMatrix() const
 {
-  glm::mat4 model = glm::mat4(1.0f);
-  model = glm::translate(model, position);
-  model = glm::rotate(model, rotation.x, glm::vec3(1.0f, 0.0f, 0.0f));
-  model = glm::rotate(model, rotation.y, glm::vec3(0.0f, 1.0f, 0.0f));
-  model = glm::rotate(model, rotation.z, glm::vec3(0.0f, 0.0f, 1.0f));
-  model = glm::scale(model, scale);
-  return model;
+  return transform.GetModelMatrix();
 }
 
 /**
@@ -116,44 +135,7 @@ std::string GameObject::GetInspectDisplayName() const
  */
 std::vector<std::shared_ptr<IInspectWidget>> GameObject::GetInspectFields()
 {
-  auto positionField = std::make_shared<InspectVec3FieldWidget>("position", "Position", "Transform");
-  positionField->SetValue(QVariantList{position.x, position.y, position.z});
-  positionField->valueChangedCallback = [this](const QVariant &value)
-  {
-    const QVariantList list = value.toList();
-    if (list.size() >= 3)
-    {
-      position = glm::vec3(static_cast<float>(list[0].toDouble()),
-                           static_cast<float>(list[1].toDouble()),
-                           static_cast<float>(list[2].toDouble()));
-    }
-  };
-
-  auto rotationField = std::make_shared<InspectVec3FieldWidget>("rotation", "Rotation", "Transform");
-  rotationField->SetValue(QVariantList{rotation.x, rotation.y, rotation.z});
-  rotationField->valueChangedCallback = [this](const QVariant &value)
-  {
-    const QVariantList list = value.toList();
-    if (list.size() >= 3)
-    {
-      rotation = glm::vec3(static_cast<float>(list[0].toDouble()),
-                           static_cast<float>(list[1].toDouble()),
-                           static_cast<float>(list[2].toDouble()));
-    }
-  };
-
-  auto scaleField = std::make_shared<InspectVec3FieldWidget>("scale", "Scale", "Transform");
-  scaleField->SetValue(QVariantList{scale.x, scale.y, scale.z});
-  scaleField->valueChangedCallback = [this](const QVariant &value)
-  {
-    const QVariantList list = value.toList();
-    if (list.size() >= 3)
-    {
-      scale = glm::vec3(static_cast<float>(list[0].toDouble()),
-                        static_cast<float>(list[1].toDouble()),
-                        static_cast<float>(list[2].toDouble()));
-    }
-  };
+  std::vector<std::shared_ptr<IInspectWidget>> fields = transform.GetInspectFields();
 
   auto visibleField = std::make_shared<InspectCheckboxFieldWidget>("isVisible", "Visible", "Rendering");
   visibleField->SetValue(visible);
@@ -162,7 +144,8 @@ std::vector<std::shared_ptr<IInspectWidget>> GameObject::GetInspectFields()
     visible = value.toBool();
   };
 
-  return {positionField, rotationField, scaleField, visibleField};
+  fields.push_back(visibleField);
+  return fields;
 }
 
 /**
@@ -180,8 +163,8 @@ std::optional<float> GameObject::CastRay(const glm::vec3 &rayOrigin, const glm::
     return std::nullopt;
   }
 
-  const float radius = std::max({std::abs(scale.x), std::abs(scale.y), std::abs(scale.z), 0.1f});
-  const glm::vec3 toCenter = rayOrigin - position;
+  const float radius = std::max({std::abs(transform.GetScale().x), std::abs(transform.GetScale().y), std::abs(transform.GetScale().z), 0.1f});
+  const glm::vec3 toCenter = rayOrigin - transform.GetPosition();
 
   const float a = glm::dot(rayDirection, rayDirection);
   const float b = 2.0f * glm::dot(toCenter, rayDirection);

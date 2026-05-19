@@ -7,6 +7,7 @@
 
 #include "Uniform/UniformProvider.h"
 #include "Camera/BaseMovement.h"
+#include "Transform.h"
 #include "ui/widgets/inspect_fields/InspectProvider.h"
 
 class Camera : public UniformProvider, public InspectProvider
@@ -37,8 +38,9 @@ public:
 protected:
   void Move(float deltaTime);
   void NotifyMovementCameraStateChanged();
+  glm::vec3 GetForwardVector() const;
 
-  glm::vec3 position;
+  Transform transform;
   glm::vec3 front;
   glm::vec3 up;
   float aspect;

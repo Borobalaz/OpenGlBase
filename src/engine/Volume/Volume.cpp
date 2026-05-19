@@ -6,6 +6,7 @@
 
 #include <glm/gtc/matrix_transform.hpp>
 
+#include "Renderer/RenderProxy.h"
 #include "Volume/VolumeTextureSet.h"
 #include "ui/widgets/inspect_fields/InspectCheckboxFieldWidget.h"
 #include "ui/widgets/inspect_fields/InspectNumberFieldWidget.h"
@@ -20,17 +21,18 @@
 Volume::Volume(const std::string &id,
                const glm::ivec3 &dimensions,
                const glm::vec3 &spacing,
-               std::shared_ptr<Shader> shader)
+               std::shared_ptr<Shader> volumeShader)
     : id(id),
       dimensions(dimensions),
       spacing(spacing),
       geometry(std::make_shared<VolumeGeometry>()),
-      shader(std::move(shader))
+      shader(std::move(volumeShader))
 {
   const glm::vec3 physicalExtents = glm::vec3(dimensions) * spacing;
   const float maxExtent = std::max({physicalExtents.x, physicalExtents.y, physicalExtents.z, 1e-6f});
-  scale = physicalExtents / maxExtent;
+  transform.SetScale(physicalExtents / maxExtent);
 }
+
 
 /**
  * @brief Apply the volume's uniform values to the shader.
@@ -48,6 +50,21 @@ void Volume::Apply(Shader &shader) const
   {
     shader.SetInt("volume.textureCount", static_cast<int>(GetTextureSet().Size()));
   }
+}
+
+void Volume::BuildRenderProxy(RenderProxy& renderProxy) const
+{
+  if (!IsValid() || !visible)
+  {
+    renderProxy.visible = false;
+    return;
+  }
+
+  renderProxy.visible = true;
+  renderProxy.customDraw = [this, frameUniforms = renderProxy.frameUniforms]()
+  {
+    Draw(frameUniforms);
+  };
 }
 
 /**
@@ -113,49 +130,7 @@ std::string Volume::GetInspectDisplayName() const
 
 std::vector<std::shared_ptr<IInspectWidget>> Volume::GetInspectFields()
 {
-  std::vector<std::shared_ptr<IInspectWidget>> fields;
-
-  auto positionField = std::make_shared<InspectVec3FieldWidget>("position", "Position", "Transform");
-  positionField->SetValue(QVariantList{position.x, position.y, position.z});
-  positionField->valueChangedCallback = [this](const QVariant &value)
-  {
-    const QVariantList list = value.toList();
-    if (list.size() >= 3)
-    {
-      position = glm::vec3(static_cast<float>(list[0].toDouble()),
-                           static_cast<float>(list[1].toDouble()),
-                           static_cast<float>(list[2].toDouble()));
-    }
-  };
-  fields.push_back(positionField);
-
-  auto rotationField = std::make_shared<InspectVec3FieldWidget>("rotation", "Rotation", "Transform");
-  rotationField->SetValue(QVariantList{rotation.x, rotation.y, rotation.z});
-  rotationField->valueChangedCallback = [this](const QVariant &value)
-  {
-    const QVariantList list = value.toList();
-    if (list.size() >= 3)
-    {
-      rotation = glm::vec3(static_cast<float>(list[0].toDouble()),
-                           static_cast<float>(list[1].toDouble()),
-                           static_cast<float>(list[2].toDouble()));
-    }
-  };
-  fields.push_back(rotationField);
-
-  auto scaleField = std::make_shared<InspectVec3FieldWidget>("scale", "Scale", "Transform");
-  scaleField->SetValue(QVariantList{scale.x, scale.y, scale.z});
-  scaleField->valueChangedCallback = [this](const QVariant &value)
-  {
-    const QVariantList list = value.toList();
-    if (list.size() >= 3)
-    {
-      scale = glm::vec3(static_cast<float>(list[0].toDouble()),
-                        static_cast<float>(list[1].toDouble()),
-                        static_cast<float>(list[2].toDouble()));
-    }
-  };
-  fields.push_back(scaleField);
+  std::vector<std::shared_ptr<IInspectWidget>> fields = transform.GetInspectFields();
 
   // Visible checkbox
   auto visibleField = std::make_shared<InspectCheckboxFieldWidget>("visible", "Visible", "Rendering");
@@ -281,13 +256,7 @@ std::vector<std::shared_ptr<IInspectWidget>> Volume::GetInspectFields()
  */
 glm::mat4 Volume::BuildModelMatrix() const
 {
-  glm::mat4 model = glm::mat4(1.0f);
-  model = glm::translate(model, position);
-  model = glm::rotate(model, rotation.x, glm::vec3(1.0f, 0.0f, 0.0f));
-  model = glm::rotate(model, rotation.y, glm::vec3(0.0f, 1.0f, 0.0f));
-  model = glm::rotate(model, rotation.z, glm::vec3(0.0f, 0.0f, 1.0f));
-  model = glm::scale(model, scale);
-  return model;
+  return transform.GetModelMatrix();
 }
 
 /**

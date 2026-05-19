@@ -93,15 +93,13 @@ namespace
     aiColor3D specular(1.0f, 1.0f, 1.0f);
     float materialShininess = 32.0f;
 
-    sourceMaterial->Get(AI_MATKEY_COLOR_AMBIENT, ambient);
     sourceMaterial->Get(AI_MATKEY_COLOR_DIFFUSE, diffuse);
-    sourceMaterial->Get(AI_MATKEY_COLOR_SPECULAR, specular);
-    sourceMaterial->Get(AI_MATKEY_SHININESS, materialShininess);
 
-    destination.SetAmbientColor(ClampColor(glm::vec3(ambient.r, ambient.g, ambient.b)));
-    destination.SetDiffuseColor(ClampColor(glm::vec3(diffuse.r, diffuse.g, diffuse.b)));
-    destination.SetSpecularColor(ClampColor(glm::vec3(specular.r, specular.g, specular.b)));
-    destination.SetShininess(materialShininess);
+    // Map Phong material to PBR: diffuse becomes baseColor, default roughness/metallic
+    destination.SetBaseColor(ClampColor(glm::vec3(diffuse.r, diffuse.g, diffuse.b)));
+    destination.SetRoughness(0.5f);    // Moderate roughness as default
+    destination.SetMetallic(0.0f);     // Non-metallic as default
+    destination.SetEmissive(glm::vec3(0.0f));
   }
 
   std::shared_ptr<Mesh> BuildMesh(const aiScene* scene,
@@ -163,14 +161,14 @@ namespace
       TryLoadTexture(scene, sourceMesh, modelDirectory, aiTextureType_DIFFUSE, "diffuse");
     if (diffuseTexture)
     {
-      material->SetDiffuseTexture(diffuseTexture);
+      material->SetTexture(PBR::TextureSlot::BaseColor, diffuseTexture);
     }
 
     const std::shared_ptr<Texture> specularTexture =
       TryLoadTexture(scene, sourceMesh, modelDirectory, aiTextureType_SPECULAR, "specular");
     if (specularTexture)
     {
-      material->SetSpecularTexture(specularTexture);
+      material->SetTexture(PBR::TextureSlot::Roughness, specularTexture);
     }
 
     return std::make_shared<Mesh>(geometry, material);

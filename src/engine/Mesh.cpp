@@ -1,4 +1,7 @@
+#include "Renderer/RenderProxy.h"
 #include "Mesh.h"
+
+#include "Uniform/CompositeUniformProvider.h"
 
 Mesh::Mesh(std::shared_ptr<Geometry> geometry,
            std::shared_ptr<Material> material)
@@ -29,21 +32,3 @@ void Mesh::SetMaterial(std::shared_ptr<Material> material)
   this->material = std::move(material);
 }
 
-/**
- * @brief Render the mesh.
- * 
- * @param uniformProvider 
- */
-void Mesh::Draw(const UniformProvider& uniformProvider) const
-{
-  if (!geometry || !material)
-  {
-    return;
-  }
-
-  material->Bind();
-
-  Shader& shader = material->GetShader();
-  uniformProvider.Apply(shader);
-  geometry->Draw(shader);
-}

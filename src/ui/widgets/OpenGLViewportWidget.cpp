@@ -105,6 +105,30 @@ void OpenGLViewportWidget::initializeGL()
   initializeScene();
 }
 
+void OpenGLViewportWidget::initializeScene()
+{
+  movement = nullptr;
+  scene = std::make_unique<Scene>();
+  scene->Init();
+
+  if (std::shared_ptr<Camera> camera = scene->GetCamera())
+  {
+    auto *inspectionMovement = new InspectionCameraMovement();
+    inspectionMovement->SetInputState(&pendingInputState);
+    movement = inspectionMovement;
+    camera->SetMoveComponent(std::unique_ptr<BaseMovement>(inspectionMovement));
+  }
+
+  scene->RebuildInspectProviders();
+  if (inspectAdapterObject)
+  {
+    inspectAdapterObject->SetProviders(scene->GetInspectProviders());
+  }
+
+  elapsedTimer.start();
+  lastFrameTimeNs = 0;
+}
+
 /**
  * @brief Override of QOpenGLWidget::resizeGL. This is called when the widget is resized.
  *  Set the camera aspect ratio to match the new viewport dimensions.
@@ -160,7 +184,7 @@ void OpenGLViewportWidget::paintGL()
   // update and render
   scene->SetInputState(pendingInputState);
   scene->Update(deltaSeconds);
-  scene->Render();
+  renderer.Render(*scene);
   pendingInputState.ResetFrameTransientState();
 
   // Update render statistics
@@ -172,6 +196,9 @@ void OpenGLViewportWidget::paintGL()
   {
     renderStatisticsObject->recordFrame(fps, renderTimeMs, elapsedTimer.nsecsElapsed());
   }
+
+  // Keep requesting frames so the viewport animates continuously.
+  update();
 }
 
 /************************************************** 

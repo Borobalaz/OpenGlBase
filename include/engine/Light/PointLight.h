@@ -3,6 +3,7 @@
 #include <glm/glm.hpp>
 
 #include "Light/Light.h"
+#include "Transform.h"
 
 class PointLight : public Light
 {
@@ -17,9 +18,12 @@ public:
              float quadratic);
 
   void Apply(Shader& shader) const override;
+  std::vector<std::shared_ptr<IInspectWidget>> GetInspectFields() override;
 
-  glm::vec3 position;
   float constant;
   float linear;
   float quadratic;
+
+private:
+  Transform transform;
 };

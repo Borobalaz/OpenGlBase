@@ -1,21 +1,28 @@
 #include "Material.h"
 
 #include <algorithm>
+#include <cctype>
+#include <iostream>
+#include <filesystem>
+
+#include "Texture/Texture2D.h"
 
 Material::Material()
-  : ambientColor(0.2f, 0.2f, 0.2f),
-    diffuseColor(0.8f, 0.8f, 0.8f),
-    specularColor(1.0f, 1.0f, 1.0f),
-    shininess(32.0f)
+  : baseColor(1.0f, 1.0f, 1.0f),
+    roughness(PBR::DefaultRoughness),
+    metallic(PBR::DefaultMetallic),
+    emissive(0.0f, 0.0f, 0.0f),
+    textures{}
 {
 }
 
 Material::Material(std::shared_ptr<Shader> shader)
   : shader(std::move(shader)),
-    ambientColor(0.2f, 0.2f, 0.2f),
-    diffuseColor(0.8f, 0.8f, 0.8f),
-    specularColor(1.0f, 1.0f, 1.0f),
-    shininess(32.0f)
+    baseColor(1.0f, 1.0f, 1.0f),
+    roughness(PBR::DefaultRoughness),
+    metallic(PBR::DefaultMetallic),
+    emissive(0.0f, 0.0f, 0.0f),
+    textures{}
 {
 }
 
@@ -24,39 +31,84 @@ void Material::SetShader(std::shared_ptr<Shader> shader)
   this->shader = shader;
 }
 
-void Material::SetDiffuseTexture(std::shared_ptr<Texture> texture)
+void Material::SetBaseColor(const glm::vec3& color)
 {
-  diffuseTexture = std::move(texture);
+  baseColor = color;
 }
 
-void Material::SetSpecularTexture(std::shared_ptr<Texture> texture)
+void Material::SetRoughness(float value)
 {
-  specularTexture = std::move(texture);
+  roughness = std::clamp(value, 0.0f, 1.0f);
 }
 
-void Material::SetTexture(std::shared_ptr<Texture> texture)
+void Material::SetMetallic(float value)
 {
-  SetDiffuseTexture(std::move(texture));
+  metallic = std::clamp(value, 0.0f, 1.0f);
 }
 
-void Material::SetAmbientColor(const glm::vec3& color)
+void Material::SetEmissive(const glm::vec3& color)
 {
-  ambientColor = color;
+  emissive = glm::clamp(color, 0.0f, 1.0f);
 }
 
-void Material::SetDiffuseColor(const glm::vec3& color)
+void Material::SetTexture(PBR::TextureSlot slot, std::shared_ptr<Texture> texture)
 {
-  diffuseColor = color;
+  size_t slotIndex = static_cast<size_t>(slot);
+  if (slotIndex < textures.size())
+  {
+    textures[slotIndex] = std::move(texture);
+  }
 }
 
-void Material::SetSpecularColor(const glm::vec3& color)
+bool Material::SetTextureFromFile(PBR::TextureSlot slot,
+                                  const std::string& texturePath,
+                                  bool flipVertically)
 {
-  specularColor = color;
+  if (texturePath.empty())
+  {
+    return false;
+  }
+
+  if (!std::filesystem::exists(texturePath))
+  {
+    std::cout << "Material texture path does not exist: " << texturePath << std::endl;
+    return false;
+  }
+
+  std::shared_ptr<Texture2D> texture = std::make_shared<Texture2D>(texturePath, flipVertically);
+  if (!texture || !texture->IsValid())
+  {
+    std::cout << "Failed to create texture for material from path: " << texturePath << std::endl;
+    return false;
+  }
+
+  SetTexture(slot, texture);
+  return true;
 }
 
-void Material::SetShininess(float value)
+bool Material::SetAlbedoTextureFromFile(const std::string& texturePath, bool flipVertically)
 {
-  shininess = std::clamp(value, 0.0f, 256.0f);
+  return SetTextureFromFile(PBR::TextureSlot::BaseColor, texturePath, flipVertically);
+}
+
+bool Material::SetRoughnessTextureFromFile(const std::string& texturePath, bool flipVertically)
+{
+  return SetTextureFromFile(PBR::TextureSlot::Roughness, texturePath, flipVertically);
+}
+
+bool Material::SetMetallicTextureFromFile(const std::string& texturePath, bool flipVertically)
+{
+  return SetTextureFromFile(PBR::TextureSlot::Metallic, texturePath, flipVertically);
+}
+
+bool Material::SetNormalTextureFromFile(const std::string& texturePath, bool flipVertically)
+{
+  return SetTextureFromFile(PBR::TextureSlot::Normal, texturePath, flipVertically);
+}
+
+bool Material::SetEmissiveTextureFromFile(const std::string& texturePath, bool flipVertically)
+{
+  return SetTextureFromFile(PBR::TextureSlot::Emissive, texturePath, flipVertically);
 }
 
 Shader& Material::GetShader() const
@@ -64,58 +116,69 @@ Shader& Material::GetShader() const
   return *shader;
 }
 
-void Material::Bind() const
+void Material::BindTextureSlot(PBR::TextureSlot slot, Shader& shader) const
 {
-  if (!shader)
+  size_t slotIndex = static_cast<size_t>(slot);
+  if (slotIndex >= textures.size())
   {
     return;
   }
 
-  shader->Use();
+  const auto& texture = textures[slotIndex];
+  const int textureUnit = static_cast<int>(slot);
+  const std::string& uniformFragment = PBR::TextureUniformFragments[slotIndex];
 
-  if (shader->HasUniform("material.ambientColor"))
+  // Bind texture to unit
+  if (texture)
   {
-    shader->SetVec3("material.ambientColor", ambientColor);
-  }
-  if (shader->HasUniform("material.diffuseColor"))
-  {
-    shader->SetVec3("material.diffuseColor", diffuseColor);
-  }
-  if (shader->HasUniform("material.specularColor"))
-  {
-    shader->SetVec3("material.specularColor", specularColor);
-  }
-  if (shader->HasUniform("material.shininess"))
-  {
-    shader->SetFloat("material.shininess", shininess);
+    texture->Bind(textureUnit);
   }
 
-  constexpr int diffuseTextureUnit = 0;
-  constexpr int specularTextureUnit = 1;
-
-  if (diffuseTexture)
+  // Set texture uniform
+  std::string textureUniformName = "material." + uniformFragment;
+  if (shader.HasUniform(textureUniformName))
   {
-    diffuseTexture->Bind(diffuseTextureUnit);
-    if (shader->HasUniform("material.diffuseTexture"))
-    {
-      shader->SetTexture("material.diffuseTexture", diffuseTextureUnit);
-    }
-  }
-  if (shader->HasUniform("material.hasDiffuseTexture"))
-  {
-    shader->SetBool("material.hasDiffuseTexture", diffuseTexture != nullptr);
+    shader.SetTexture(textureUniformName, textureUnit);
   }
 
-  if (specularTexture)
+  // Set has-texture flag for shader branching
+  std::string hasTextureUniformName = "material.has" + uniformFragment;
+  // Capitalize first letter for flag naming: "hasBaseColorTexture"
+  hasTextureUniformName[sizeof("material.has") - 1] = static_cast<char>(std::toupper(uniformFragment[0]));
+  if (shader.HasUniform(hasTextureUniformName))
   {
-    specularTexture->Bind(specularTextureUnit);
-    if (shader->HasUniform("material.specularTexture"))
-    {
-      shader->SetTexture("material.specularTexture", specularTextureUnit);
-    }
+    shader.SetBool(hasTextureUniformName, texture != nullptr);
   }
-  if (shader->HasUniform("material.hasSpecularTexture"))
+}
+
+void Material::Apply(Shader& shader) const
+{
+  if (!this->shader)
   {
-    shader->SetBool("material.hasSpecularTexture", specularTexture != nullptr);
+    return;
+  }
+
+  // Set PBR base properties
+  if (shader.HasUniform("material.albedoFactor"))
+  {
+    shader.SetVec3("material.albedoFactor", baseColor);
+  }
+  if (shader.HasUniform("material.roughnessFactor"))
+  {
+    shader.SetFloat("material.roughnessFactor", roughness);
+  }
+  if (shader.HasUniform("material.metallicFactor"))
+  {
+    shader.SetFloat("material.metallicFactor", metallic);
+  }
+  if (shader.HasUniform("material.emissiveFactor"))
+  {
+    shader.SetVec3("material.emissiveFactor", emissive);
+  }
+
+  // Bind all texture slots
+  for (size_t i = 0; i < static_cast<size_t>(PBR::TextureSlot::Count); ++i)
+  {
+    BindTextureSlot(static_cast<PBR::TextureSlot>(i), shader);
   }
 }

@@ -4,12 +4,11 @@
 
 #include "Mesh.h"
 #include "Geometry/ModelLoader.h"
+#include "Geometry/SphereGeometry.h"
 #include "Texture/Skybox.h"
 #include "Texture/Texture2D.h"
 #include "Volume/FloatVolume.h"
 #include "Volume/VolumeFileLoader.h"
-
-#include <chrono>
 #include <cmath>
 #include <iostream>
 
@@ -20,68 +19,102 @@
 namespace
 {
   constexpr int kMaxLights = 16;
-
-  float SceneElapsedSeconds()
-  {
-    static const auto startTime = std::chrono::steady_clock::now();
-    const auto now = std::chrono::steady_clock::now();
-    const auto elapsed = now - startTime;
-    return std::chrono::duration<float>(elapsed).count();
-  }
-
-  VolumeData CreateSeedVolumeData(int width, int height, int depth)
-  {
-    VolumeData data(width, height, depth);
-    for (float& voxel : data.GetVoxels())
-    {
-      voxel = 1.0f;
-    }
-    return data;
-  }
 }
 
 /**
  * @brief Construct a new Scene:: Scene object
+ *        Set up default objects in the scene.
  * 
  */
 Scene::Scene()
-  : clearColor{1.0f, 1.0f, 1.0f, 1.0f},
-    camera(std::make_shared<PerspectiveCamera>(45.0f, 800.0f / 600.0f, 0.1f, 100.0f))
+  : camera(std::make_shared<PerspectiveCamera>(45.0f, 800.0f / 600.0f, 0.1f, 100.0f))
 {
   AddInspectProvider(this);
   AddInspectProvider(camera);
 
-  // ------------- SHADERS -------------
-
+  // ------------- SHADERS (PBR) -------------
+  std::shared_ptr<Shader> defaultShader = std::make_shared<Shader>(
+    "default",
+    "shaders/vertex.glsl",
+    "shaders/pbr_fragment.glsl"
+  );
   // ------------- MATERIALS -------------
+  std::shared_ptr<Material> boneMaterial = std::make_shared<Material>(defaultShader);
+  boneMaterial->SetAlbedoTextureFromFile("assets/materials/bone/bone_albedo.png");
+  boneMaterial->SetNormalTextureFromFile("assets/materials/bone/bone_normal-ogl.png");
+  boneMaterial->SetRoughnessTextureFromFile("assets/materials/bone/bone_roughness.png");
+  boneMaterial->SetMetallicTextureFromFile("assets/materials/bone/bone_metallic.png");
 
+  std::shared_ptr<Material> donutMaterial = std::make_shared<Material>(defaultShader);
+  donutMaterial->SetAlbedoTextureFromFile("assets/materials/donut/Poliigon_FoodPastryDonut_10737_BaseColor.jpg");
+  donutMaterial->SetNormalTextureFromFile("assets/materials/donut/Poliigon_FoodPastryDonut_10737_Normal.png");
+  donutMaterial->SetRoughnessTextureFromFile("assets/materials/donut/Poliigon_FoodPastryDonut_10737_Roughness.jpg");
+  donutMaterial->SetMetallicTextureFromFile("assets/materials/donut/Poliigon_FoodPastryDonut_10737_Metallic.jpg");
+
+  std::shared_ptr<Material> dragonMaterial = std::make_shared<Material>(defaultShader);
+  dragonMaterial->SetAlbedoTextureFromFile("assets/textures/dragon/DefaultMaterial_albedo.jpg");
+  dragonMaterial->SetNormalTextureFromFile("assets/textures/dragon/DefaultMaterial_normal.png");
+  dragonMaterial->SetRoughnessTextureFromFile("assets/textures/dragon/DefaultMaterial_roughness.jpg");
+  dragonMaterial->SetMetallicTextureFromFile("assets/textures/dragon/DefaultMaterial_metallic.jpg");
   // ------------- GAME OBJECTS -------------
-  
+  auto sphere2 = std::make_shared<GameObject>(
+    std::make_shared<SphereGeometry>(0.2f, 64, 32),
+    donutMaterial,
+    "sphere2");
+  sphere2->SetPosition(glm::vec3(0.5f, 0.0f, 0.0f));
+
+  sphere2->SetUpdate([sphere2](float deltaTime)
+  {
+    glm::vec3 pos = sphere2->GetPosition();
+    sphere2->SetPosition(glm::vec3(0.5f, std::sin(pos.y) * 0.5 + 0.5f, 0.0f));
+  });
+
+  auto floor = std::make_shared<GameObject>(
+    std::make_shared<QuadGeometry>(),
+    boneMaterial,
+    "floor");
+  floor->SetPosition(glm::vec3(0.0f, -0.2f, 0.0f));
+  floor->SetRotation(glm::vec3(-glm::half_pi<float>(), 0.0f, 0.0f));
+  floor->SetScale(glm::vec3(10.0f));
+
+  auto dragon = ModelLoader::LoadGameObject("assets/models/dragon.dae", defaultShader);
+  dragon->SetMaterial(dragonMaterial);
+  dragon->SetPosition(glm::vec3(-0.5f, -0.2f, 0.0f));
+  dragon->SetRotation(glm::vec3(0.0f, glm::pi<float>() / 3.0f, 0.0f));
+  dragon->SetScale(glm::vec3(0.01f));
+
+  AddGameObject(sphere2);
+  AddGameObject(dragon);
+  AddGameObject(floor);
   // ------------- VOLUME -------------
 
   // ------------- LIGHTS -------------
-  std::shared_ptr<PointLight> light0 = std::make_shared<PointLight>(PointLight(
-    "point_0",
-    glm::vec3(0.0f, 0.0f, 2.0f),
-    glm::vec3(1.0f, 0.08f, 0.08f),
-    glm::vec3(0.9f, 0.9f, 0.9f),
+  std::shared_ptr<DirectionalLight> directionalLight = std::make_shared<DirectionalLight>(
+    "dirLight",
+    glm::vec3(-1.0f, 0.0f, 0.0f),
+    glm::vec3(0.5f, 0.5f, 0.5f),
     glm::vec3(1.0f, 1.0f, 1.0f),
-    1.0f,
-    0.09f,
-    0.032f
-  ));
-  AddLight(light0);
-  AddInspectProvider(light0);
+    glm::vec3(-1.0f, -1.0f, -1.0f)
+  );
+  AddLight(directionalLight);
 
-  std::shared_ptr<DirectionalLight> light1 = std::make_shared<DirectionalLight>(DirectionalLight(
-    "directional_0",
-    glm::vec3(-0.2f, -1.0f, -0.3f),
-    glm::vec3(0.05f, 0.05f, 0.05f),
-    glm::vec3(0.45f, 0.45f, 0.45f),
-    glm::vec3(0.35f, 0.35f, 0.35f)
-  ));
-  AddLight(light1);
-  AddInspectProvider(light1);
+  std::shared_ptr<DirectionalLight> directionalLight2 = std::make_shared<DirectionalLight>(
+    "dirLight2",
+    glm::vec3(1.0f, 0.0f, 0.0f),
+    glm::vec3(0.5f, 0.5f, 0.5f),
+    glm::vec3(1.0f, 1.0f, 1.0f),
+    glm::vec3(-1.0f, -1.0f, -1.0f)
+  );
+  AddLight(directionalLight2);
+
+  //SetSkybox(SkyboxFaces{
+  //  "assets/textures/skybox/pz.png",
+  //  "assets/textures/skybox/nz.png",
+  //  "assets/textures/skybox/py.png",
+  //  "assets/textures/skybox/ny.png",
+  //  "assets/textures/skybox/px.png",
+  //  "assets/textures/skybox/nx.png"
+  //});
 }
 
 /**
@@ -92,7 +125,6 @@ Scene::Scene()
  */
 void Scene::Init()
 {
-  glClearColor(clearColor[0], clearColor[1], clearColor[2], clearColor[3]);
   glEnable(GL_DEPTH_TEST);
   glDepthFunc(GL_LESS);
   glEnable(GL_TEXTURE_CUBE_MAP_SEAMLESS);
@@ -109,32 +141,19 @@ void Scene::Update(float deltaTime)
   {
     camera->Update(deltaTime);
   }
-  for (const auto& gameObject : gameObjects)
+  for (const auto& updateable : updateables)
   {
-    // gameObject->rotation += glm::vec3(deltaTime / 2, deltaTime / 2, deltaTime / 2);
+    if (updateable)
+    {
+      updateable->Update(deltaTime);
+    }
   }
 
   for (const auto& light : lights)
   {
-    // circularly move the point light around the origin
-    if (auto pointLight = std::dynamic_pointer_cast<PointLight>(light))
+    if (light)
     {
-      const float radius = 2.0f;
-      const float speed = 0.5f; // radians per second
-      const float angle = SceneElapsedSeconds() * speed;
-      pointLight->position =
-        glm::vec3(std::cos(angle) * radius, 0.0f, std::sin(angle) * radius);
-    }
-  }
-
-  for (const auto& volume : volumes)
-  {
-    if (volume)
-    {
-      if (std::shared_ptr<Shader> shader = volume->getShader())
-      {
-        (*shader)["time"] = SceneElapsedSeconds();
-      }
+      light->Update(deltaTime);
     }
   }
 
@@ -143,7 +162,7 @@ void Scene::Update(float deltaTime)
 }
 
 /**
- * @brief Apply the scene's uniforms to the given shader
+ * @brief Apply the scene's uniforms to the given shader.
  * 
  * @param shader The shader to apply uniforms to
  */
@@ -165,83 +184,45 @@ void Scene::Apply(Shader& shader) const
 }
 
 /**
- * @brief Scene renderer function
+ * @brief Clear all game objects from the scene
  * 
  */
-void Scene::Render()
+void Scene::ClearGameObjects()
 {
-  // Qt Quick can reset GL state between frames, so enforce depth state before drawing.
-  glEnable(GL_DEPTH_TEST);
-  glDepthFunc(GL_LESS);
-  glDepthMask(GL_TRUE);
-  glClearColor(clearColor[0], clearColor[1], clearColor[2], clearColor[3]);
-
-  glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-  
-  // Count active lights
-  const int enabledCount = static_cast<int>(std::count_if(lights.begin(), lights.end(),
-    [](const auto& lightEntry)
+  drawables.erase(std::remove_if(drawables.begin(), drawables.end(),
+    [](const std::shared_ptr<IDrawable>& drawable)
     {
-      const std::shared_ptr<Light>& light = lightEntry;
-      return light && light->GetEnabled();
-    }));
-  const int lightCount = static_cast<int>(std::min(enabledCount, kMaxLights));
+      return std::dynamic_pointer_cast<GameObject>(drawable) != nullptr;
+    }),
+    drawables.end());
 
-  std::vector<std::shared_ptr<Light>> enabledLights;
-  enabledLights.reserve(static_cast<size_t>(lightCount));
-  for (const auto& light : lights)
-  {
-    if (!light || !light->GetEnabled())
+  updateables.erase(std::remove_if(updateables.begin(), updateables.end(),
+    [](const std::shared_ptr<IUpdateable>& updateable)
     {
-      continue;
-    }
+      return std::dynamic_pointer_cast<GameObject>(updateable) != nullptr;
+    }),
+    updateables.end());
+}
 
-    enabledLights.push_back(light);
-    if (static_cast<int>(enabledLights.size()) >= lightCount)
+/**
+ * @brief Clear all volumes from the scene
+ * 
+ */
+void Scene::ClearVolumes()
+{
+  drawables.erase(std::remove_if(drawables.begin(), drawables.end(),
+    [](const std::shared_ptr<IDrawable>& drawable)
     {
-      break;
-    }
-  }
+      return std::dynamic_pointer_cast<Volume>(drawable) != nullptr;
+    }),
+    drawables.end());
 
-  // Set up frame uniforms
-  frameUniforms.ClearProviders();
-  frameUniforms.AddProvider(*this);
-  if (camera)
-  {
-    frameUniforms.AddProvider(*camera);
-  }
-  for (int i = 0; i < static_cast<int>(enabledLights.size()); ++i)
-  {
-    enabledLights[static_cast<size_t>(i)]->SetUniformIndex(i);
-    frameUniforms.AddProvider(*enabledLights[static_cast<size_t>(i)]);
-  }
-
-  // Draw game objects
-  for (const auto& gameObject : gameObjects)
-  {
-    if (gameObject)
+  updateables.erase(std::remove_if(updateables.begin(), updateables.end(),
+    [](const std::shared_ptr<IUpdateable>& updateable)
     {
-      gameObject->Draw(frameUniforms);
-    }
-  }
-
-  // Draw skybox
-  if (skybox != nullptr)
-  {
-    if (camera)
-    {
-      skybox->Draw(*camera);
-    }
-  }
-
-  // Draw volumes
-  for (const auto& volume : volumes)
-  {
-    if (volume)
-    {
-      volume->Draw(frameUniforms);
-    }
-  }
+      return std::dynamic_pointer_cast<Volume>(updateable) != nullptr;
+    }),
+    updateables.end());
 }
 
 /**
@@ -253,7 +234,19 @@ void Scene::SetSkybox(std::shared_ptr<TextureCube> cubemap)
 {
   if (cubemap != nullptr && cubemap->IsValid())
   {
+    // Remove any existing skybox drawable first
+    if (skybox)
+    {
+      drawables.erase(std::remove_if(drawables.begin(), drawables.end(),
+        [this](const std::shared_ptr<IDrawable>& d)
+        {
+          return std::dynamic_pointer_cast<Skybox>(d) != nullptr;
+        }), drawables.end());
+    }
+
     skybox = std::make_shared<Skybox>(std::move(cubemap));
+    // Add skybox to drawables so it participates in proxy building
+    AddDrawable(skybox);
     return;
   }
 
@@ -276,6 +269,13 @@ void Scene::SetSkybox(const SkyboxFaces& faces)
  */
 void Scene::ClearSkybox()
 {
+  // Remove any skybox drawable from drawables list
+  drawables.erase(std::remove_if(drawables.begin(), drawables.end(),
+    [](const std::shared_ptr<IDrawable>& d)
+    {
+      return std::dynamic_pointer_cast<Skybox>(d) != nullptr;
+    }), drawables.end());
+
   skybox.reset();
 }
 
@@ -348,6 +348,69 @@ Scene::~Scene()
 {
 }
 
+/**
+ * @brief Builds a list of RenderProxies that represent every object that should be rendered on the screen.
+ *        The Renderer will comsume this list.
+ * 
+ * @return std::vector<RenderProxy> 
+ */
+std::vector<RenderProxy> Scene::GetRenderProxies() const
+{
+  std::vector<RenderProxy> proxies;
+
+  // Set up basic uniform provider list 
+  // consising of the scene itself, the camera, and all enabled lights.
+  CompositeUniformProvider sceneUniforms;
+  sceneUniforms.AddProvider(*this);
+  if (camera)
+  {
+    sceneUniforms.AddProvider(*camera);
+  }
+
+  int lightUniformIndex = 0;
+  for (const auto& light : lights)
+  {
+    if (!light || !light->GetEnabled())
+    {
+      continue;
+    }
+
+    light->SetUniformIndex(lightUniformIndex++);
+    sceneUniforms.AddProvider(*light);
+  }
+
+  // Each drawable builds a render proxy
+  for (const auto &drawable : drawables)
+  {
+    // Skip null drawables
+    if (!drawable)
+    {
+      continue;
+    }
+
+    RenderProxy proxy;
+    proxy.frameUniforms = sceneUniforms;
+    proxy.preferredShader = nullptr;
+    proxy.geometry = nullptr;
+    proxy.visible = true;
+
+    drawable->BuildRenderProxy(proxy);
+
+    // If it actually should be drawn then add it to the list for the renderer
+    if (proxy.visible)
+    {
+      proxies.push_back(proxy);
+    }
+  }
+
+  return proxies;
+}
+
+/**
+ * @brief Rebuild the inspect providers for the scene, including the scene itself, 
+ *  the camera, and all lights and drawables that implement InspectProvider
+ * 
+ */
 void Scene::RebuildInspectProviders()
 {
   inspectProviders.clear();
@@ -358,25 +421,23 @@ void Scene::RebuildInspectProviders()
   {
     AddInspectProvider(light);
   }
+
+  for (const auto& drawable : drawables)
+  {
+    if (auto provider = std::dynamic_pointer_cast<InspectProvider>(drawable))
+    {
+      AddInspectProvider(provider);
+    }
+  }
 }
 
+/**
+ * @brief Get the inspect fields for the scene, clear color in this case
+ * 
+ * @return std::vector<std::shared_ptr<IInspectWidget>> 
+ */
 std::vector<std::shared_ptr<IInspectWidget>> Scene::GetInspectFields()
 {
   std::vector<std::shared_ptr<IInspectWidget>> fields;
-
-  auto clearColorField = std::make_shared<InspectColorFieldWidget>("clearColor", "Clear Color", "Color");
-  clearColorField->SetValue(QVariantList{clearColor[0], clearColor[1], clearColor[2]});
-  clearColorField->valueChangedCallback = [this](const QVariant &value)
-  {
-    const QVariantList list = value.toList();
-    if (list.size() >= 3)
-    {
-      clearColor[0] = static_cast<float>(list[0].toDouble());
-      clearColor[1] = static_cast<float>(list[1].toDouble());
-      clearColor[2] = static_cast<float>(list[2].toDouble());
-    }
-  };
-  fields.push_back(clearColorField);
-
   return fields;
 }

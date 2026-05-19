@@ -1,5 +1,6 @@
 #include "Light/PointLight.h"
 
+#include <cmath>
 #include <string>
 
 #include "Shader.h"
@@ -24,10 +25,10 @@ PointLight::PointLight(const std::string& id,
                               float linear,
                               float quadratic)
   : Light(id, ambient, diffuse, specular),
-    position(position),
     constant(constant),
     linear(linear),
-    quadratic(quadratic)
+    quadratic(quadratic),
+    transform(position, glm::vec3(0.0f), glm::vec3(1.0f))
 {
 }
 
@@ -54,9 +55,17 @@ void PointLight::Apply(Shader& shader) const
   shader.SetVec3(prefix + ".ambient", ambient);
   shader.SetVec3(prefix + ".diffuse", diffuse);
   shader.SetVec3(prefix + ".specular", specular);
-  shader.SetVec3(prefix + ".position", position);
+  shader.SetVec3(prefix + ".position", transform.GetPosition());
   shader.SetVec3(prefix + ".direction", glm::vec3(0.0f, -1.0f, 0.0f));
   shader.SetFloat(prefix + ".constant", constant);
   shader.SetFloat(prefix + ".linear", linear);
   shader.SetFloat(prefix + ".quadratic", quadratic);
+}
+
+std::vector<std::shared_ptr<IInspectWidget>> PointLight::GetInspectFields()
+{
+  std::vector<std::shared_ptr<IInspectWidget>> fields = transform.GetInspectFields();
+  const std::vector<std::shared_ptr<IInspectWidget>> lightFields = Light::GetInspectFields();
+  fields.insert(fields.end(), lightFields.begin(), lightFields.end());
+  return fields;
 }

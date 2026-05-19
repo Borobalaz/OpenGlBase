@@ -10,6 +10,7 @@
 
 #include "Input/InputState.h"
 #include "ui/state/RenderStatistics.h"
+#include "engine/Renderer/ForwardRenderer.h"
 
 class Scene;
 class QTSceneInspector;
@@ -29,7 +30,7 @@ class OpenGLViewportWidget : public QOpenGLWidget
   Q_PROPERTY(RenderStatistics *renderStatistics READ renderStatistics NOTIFY renderStatisticsChanged)
 
 public:
-  explicit OpenGLViewportWidget(QWidget *parent = nullptr);
+  OpenGLViewportWidget(QWidget *parent = nullptr);
   ~OpenGLViewportWidget() override;
 
   RenderStatistics *renderStatistics() const;
@@ -54,7 +55,7 @@ protected:
    * @brief Initialize the 3D scene. Called once after OpenGL context is ready.
    * Subclasses should override this to set up their specific scene.
    */
-  virtual void initializeScene() = 0;
+  void initializeScene();
 
   // Scene management
   std::unique_ptr<Scene> scene;
@@ -64,6 +65,7 @@ private:
   InputState pendingInputState; // Accumulates input events between frames
   std::unique_ptr<RenderStatistics> renderStatisticsObject; // Owned by this widget; exposes rendering metrics for external display
   std::unique_ptr<QTSceneInspector> inspectAdapterObject; // Owned by this widget; exposes the scene's inspectable objects to Qt widgets
+  ForwardRenderer renderer;
 
   QTimer frameTimer;
   QElapsedTimer elapsedTimer;

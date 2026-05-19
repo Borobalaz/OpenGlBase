@@ -252,7 +252,6 @@ void main()
     vec3(0.5, 0.5, 1.0)
   );
   vec3 normal = UnpackNormal(normalMapSample, material.hasNormal, fragWorldNormal);
-
   // Compute view direction
   vec3 viewDir = normalize(camera.viewPosition - fragWorldPosition);
 

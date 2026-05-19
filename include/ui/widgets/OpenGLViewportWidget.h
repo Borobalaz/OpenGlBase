@@ -10,6 +10,7 @@
 
 #include "Input/InputState.h"
 #include "ui/state/RenderStatistics.h"
+#include "engine/Renderer/ForwardRenderer.h"
 
 class Scene;
 class QTSceneInspector;
@@ -64,6 +65,7 @@ private:
   InputState pendingInputState; // Accumulates input events between frames
   std::unique_ptr<RenderStatistics> renderStatisticsObject; // Owned by this widget; exposes rendering metrics for external display
   std::unique_ptr<QTSceneInspector> inspectAdapterObject; // Owned by this widget; exposes the scene's inspectable objects to Qt widgets
+  ForwardRenderer renderer;
 
   QTimer frameTimer;
   QElapsedTimer elapsedTimer;

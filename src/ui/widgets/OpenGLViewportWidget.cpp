@@ -184,7 +184,7 @@ void OpenGLViewportWidget::paintGL()
   // update and render
   scene->SetInputState(pendingInputState);
   scene->Update(deltaSeconds);
-  scene->Render();
+  renderer.Render(*scene);
   pendingInputState.ResetFrameTransientState();
 
   // Update render statistics

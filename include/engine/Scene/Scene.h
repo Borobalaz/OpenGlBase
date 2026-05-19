@@ -30,7 +30,6 @@ class Triangle;
 class Skybox;
 class TextureCube;
 class Volume;
-class Renderer;
 
 class Scene : public UniformProvider, InspectProvider
 {
@@ -110,14 +109,10 @@ public:
 
 
 private:
-  float clearColor[4];
-
   std::shared_ptr<Camera> camera;
   CompositeUniformProvider frameUniforms;
-  std::unique_ptr<Renderer> renderer;
 
   std::shared_ptr<Skybox> skybox;
-
   std::vector<std::shared_ptr<Light>> lights;
   std::vector<std::shared_ptr<IDrawable>> drawables;
   std::vector<std::shared_ptr<IUpdateable>> updateables;

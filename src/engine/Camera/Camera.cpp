@@ -53,9 +53,21 @@ void Camera::Apply(Shader& shader) const
     shader.SetMat4(viewUniformName, GetViewMatrix());
   }
 
+  // Also set plain uniform names if the shader expects them (useful for legacy or specialized shaders
+  // such as the skybox shader which expects 'viewMatrix' and 'projectionMatrix').
+  if (shader.HasUniform("viewMatrix"))
+  {
+    shader.SetMat4("viewMatrix", GetViewMatrix());
+  }
+
   if (shader.HasUniform(projectionUniformName))
   {
     shader.SetMat4(projectionUniformName, GetProjectionMatrix());
+  }
+
+  if (shader.HasUniform("projectionMatrix"))
+  {
+    shader.SetMat4("projectionMatrix", GetProjectionMatrix());
   }
 
   const glm::vec3 forward = GetForwardVector();

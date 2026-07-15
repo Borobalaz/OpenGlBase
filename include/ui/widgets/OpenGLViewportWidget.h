@@ -11,6 +11,8 @@
 #include "Input/InputState.h"
 #include "ui/state/RenderStatistics.h"
 #include "engine/Renderer/ForwardRenderer.h"
+#include "engine/RenderCore/ExtractionRegistry.h"
+#include "engine/RenderCore/RenderFrameBuilder.h"
 
 class Scene;
 class QTSceneInspector;
@@ -66,6 +68,9 @@ private:
   std::unique_ptr<RenderStatistics> renderStatisticsObject; // Owned by this widget; exposes rendering metrics for external display
   std::unique_ptr<QTSceneInspector> inspectAdapterObject; // Owned by this widget; exposes the scene's inspectable objects to Qt widgets
   ForwardRenderer renderer;
+  ExtractionRegistry extractionRegistry;
+  RenderFrameBuilder renderFrameBuilder;
+  bool hasRegisteredExtractors = false;
 
   QTimer frameTimer;
   QElapsedTimer elapsedTimer;

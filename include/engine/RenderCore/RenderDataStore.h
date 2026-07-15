@@ -1,0 +1,103 @@
+#pragma once
+
+#include <cassert>
+#include <memory>
+#include <type_traits>
+#include <unordered_map>
+#include <utility>
+#include <vector>
+
+#include "RenderCore/StableTypeId.h"
+
+class IRenderDataChannel
+{
+public:
+  virtual ~IRenderDataChannel() = default;
+  virtual StableTypeId elementType() const = 0;
+};
+
+template<typename T>
+class RenderDataChannel final : public IRenderDataChannel
+{
+public:
+  StableTypeId elementType() const override
+  {
+    return typeId<T>();
+  }
+
+  void Append(const T& value)
+  {
+    values.push_back(value);
+  }
+
+  void Append(T&& value)
+  {
+    values.push_back(std::move(value));
+  }
+
+  const std::vector<T>& Items() const
+  {
+    return values;
+  }
+
+private:
+  std::vector<T> values;
+};
+
+class RenderDataStore
+{
+public:
+  template<typename T>
+  RenderDataChannel<T>& GetOrCreate()
+  {
+    const StableTypeId channelType = typeId<T>();
+    const auto iterator = channels.find(channelType);
+    if (iterator != channels.end())
+    {
+      auto* typedChannel = dynamic_cast<RenderDataChannel<T>*>(iterator->second.get());
+      assert(typedChannel != nullptr && "RenderDataStore channel type mismatch");
+      return *typedChannel;
+    }
+
+    auto channel = std::make_unique<RenderDataChannel<T>>();
+    RenderDataChannel<T>* channelPtr = channel.get();
+    channels.emplace(channelType, std::move(channel));
+    return *channelPtr;
+  }
+
+  template<typename T>
+  void Append(const T& value)
+  {
+    GetOrCreate<T>().Append(value);
+  }
+
+  template<typename T>
+  void Append(T&& value)
+  {
+    GetOrCreate<T>().Append(std::move(value));
+  }
+
+  template<typename T>
+  bool Contains() const
+  {
+    return channels.find(typeId<T>()) != channels.end();
+  }
+
+  template<typename T>
+  const std::vector<T>& Read() const
+  {
+    const auto iterator = channels.find(typeId<T>());
+    if (iterator == channels.end())
+    {
+      static const std::vector<T> empty;
+      return empty;
+    }
+
+    const auto* typedChannel = dynamic_cast<const RenderDataChannel<T>*>(iterator->second.get());
+    assert(typedChannel != nullptr && "RenderDataStore channel type mismatch");
+    return typedChannel->Items();
+  }
+
+private:
+  std::unordered_map<StableTypeId, std::unique_ptr<IRenderDataChannel>> channels;
+};

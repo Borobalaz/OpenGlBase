@@ -5,12 +5,25 @@
 #include <glad/glad.h>
 
 #include "Geometry/Geometry.h"
+#include "Renderer/RenderProxy.h"
 #include "Shader.h"
-#include "Scene/Scene.h"
 
-void ForwardRenderer::Render(Scene& scene)
+ForwardRenderer::ForwardRenderer()
+  : descriptor{
+      typeId<ForwardRenderer>(),
+      "Forward Renderer",
+      CapabilitySet{RenderCapabilities::Rasterization, RenderCapabilities::ForwardShading}}
 {
-  const std::vector<RenderProxy> renderProxies = scene.GetRenderProxies();
+}
+
+const RendererDescriptor& ForwardRenderer::GetDescriptor() const
+{
+  return descriptor;
+}
+
+void ForwardRenderer::Draw(const RenderFrame& frame)
+{
+  const std::vector<RenderProxy>& renderProxies = frame.data.Read<RenderProxy>();
 
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 

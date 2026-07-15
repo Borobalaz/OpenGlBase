@@ -1,15 +1,15 @@
 #pragma once
 #include "Renderer.h"
-#include "Shader.h"
-
-class Scene;
 
 class DeferredRenderer: public Renderer
 {
 public:
-  DeferredRenderer() = default;
-  void Render(Scene& scene) override;
+  DeferredRenderer();
+
+  const RendererDescriptor& GetDescriptor() const override;
+  void Draw(const RenderFrame& frame) override;
 
 private:
+  RendererDescriptor descriptor;
   unsigned int gBuffer = 1;
 };

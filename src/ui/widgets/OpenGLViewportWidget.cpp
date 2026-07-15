@@ -16,6 +16,7 @@
 
 #include "engine/Scene/Scene.h"
 #include "Camera/InspectionCameraMovement.h"
+#include "RenderCore/LegacyRenderProxyExtractor.h"
 #include "ui/qt-adapters/QTSceneInspector.h"
 #include "ui/state/RenderStatistics.h"
 
@@ -111,6 +112,18 @@ void OpenGLViewportWidget::initializeScene()
   scene = std::make_unique<Scene>();
   scene->Init();
 
+  if (!hasRegisteredExtractors)
+  {
+    ExtractorRegistrationInfo extractorInfo;
+    extractorInfo.debugName = "LegacyRenderProxyExtractor";
+    extractorInfo.phase = ExtractionPhase::Geometry;
+    extractorInfo.priority = 0;
+    extractionRegistry.RegisterExtractor(
+      std::make_unique<LegacyRenderProxyExtractor>(),
+      extractorInfo);
+    hasRegisteredExtractors = true;
+  }
+
   if (std::shared_ptr<Camera> camera = scene->GetCamera())
   {
     auto *inspectionMovement = new InspectionCameraMovement();
@@ -184,7 +197,9 @@ void OpenGLViewportWidget::paintGL()
   // update and render
   scene->SetInputState(pendingInputState);
   scene->Update(deltaSeconds);
-  renderer.Render(*scene);
+  const SceneSnapshot snapshot = scene->CreateSnapshot();
+  const RenderFrame frame = renderFrameBuilder.Build(snapshot, renderer.GetDescriptor(), extractionRegistry);
+  renderer.Draw(frame);
   pendingInputState.ResetFrameTransientState();
 
   // Update render statistics

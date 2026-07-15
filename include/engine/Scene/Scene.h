@@ -21,6 +21,7 @@
 #include "Input/InputState.h"
 #include "IDrawable.h"
 #include "IUpdateable.h"
+#include "RenderCore/SceneSnapshot.h"
 #include "ui/widgets/inspect_fields/InspectProvider.h"
 #include <memory>
 #include "Renderer/RenderProxy.h"
@@ -54,6 +55,7 @@ public:
 
   // Render proxy gathering
   std::vector<RenderProxy> GetRenderProxies() const;
+  SceneSnapshot CreateSnapshot() const;
 
   // Input state management
   const InputState& GetInputState() const { return inputState; }
@@ -121,4 +123,3 @@ private:
 
   std::vector<InspectProvider*> inspectProviders;
 };
-

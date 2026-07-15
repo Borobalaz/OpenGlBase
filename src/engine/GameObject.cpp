@@ -75,26 +75,39 @@ void GameObject::BuildRenderProxy(RenderProxy& context) const
     return;
   }
 
-  context.frameUniforms.AddProvider(*this);
+  context.visible = true;
+  context.preferredShader = nullptr;
+  context.geometry = nullptr;
 
-  for (const auto &mesh : meshes)
+  const CompositeUniformProvider frameUniforms = context.frameUniforms;
+  context.customDraw = [this, frameUniforms]()
   {
-    if (mesh)
+    for (const auto& mesh : meshes)
     {
-      if (const std::shared_ptr<Geometry> geometry = mesh->GetGeometry())
+      if (!mesh)
       {
-        context.geometry = geometry.get();
+        continue;
       }
 
-      if (const std::shared_ptr<Material> material = mesh->GetMaterial())
+      const std::shared_ptr<Geometry> geometry = mesh->GetGeometry();
+      const std::shared_ptr<Material> material = mesh->GetMaterial();
+      if (!geometry || !material)
       {
-        context.frameUniforms.AddProvider(*material);
-        context.preferredShader = &material->GetShader();
+        continue;
       }
 
-      break;
+      Shader& shader = material->GetShader();
+      shader.Use();
+
+      CompositeUniformProvider uniforms = frameUniforms;
+      uniforms.AddProvider(*this);
+      uniforms.AddProvider(*material);
+      uniforms.Apply(shader);
+      shader.Apply(shader);
+
+      geometry->Draw(shader);
     }
-  }
+  };
 }
 
 /**
@@ -192,5 +205,4 @@ std::optional<float> GameObject::CastRay(const glm::vec3 &rayOrigin, const glm::
 
   return std::nullopt;
 }
-
 

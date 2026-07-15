@@ -5,7 +5,11 @@
 class ForwardRenderer : public Renderer
 {
 public:
-  ForwardRenderer() = default;
+  ForwardRenderer();
 
-  void Render(Scene& scene) override;
+  const RendererDescriptor& GetDescriptor() const override;
+  void Draw(const RenderFrame& frame) override;
+
+private:
+  RendererDescriptor descriptor;
 };

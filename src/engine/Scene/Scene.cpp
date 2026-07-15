@@ -406,6 +406,11 @@ std::vector<RenderProxy> Scene::GetRenderProxies() const
   return proxies;
 }
 
+SceneSnapshot Scene::CreateSnapshot() const
+{
+  return SceneSnapshot(GetRenderProxies());
+}
+
 /**
  * @brief Rebuild the inspect providers for the scene, including the scene itself, 
  *  the camera, and all lights and drawables that implement InspectProvider

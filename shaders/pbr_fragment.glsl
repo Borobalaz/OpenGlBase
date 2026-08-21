@@ -147,17 +147,17 @@ out vec4 FragColor;
 
 // ========== Utility Functions ==========
 
-vec3 SampleTextureOrDefault(sampler2D texture, bool hasTexture, vec3 defaultValue)
+vec3 SampleTextureOrDefault(sampler2D textureSampler, bool hasTexture, vec3 defaultValue)
 {
   if (hasTexture)
-    return texture(texture, fragTexCoord).rgb;
+    return texture(textureSampler, fragTexCoord).rgb;
   return defaultValue;
 }
 
-float SampleTextureOrDefault(sampler2D texture, bool hasTexture, float defaultValue)
+float SampleTextureOrDefault(sampler2D textureSampler, bool hasTexture, float defaultValue)
 {
   if (hasTexture)
-    return texture(texture, fragTexCoord).r;
+    return texture(textureSampler, fragTexCoord).r;
   return defaultValue;
 }
 

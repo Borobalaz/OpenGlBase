@@ -9,7 +9,16 @@ $ErrorActionPreference = "Stop"
 
 $TargetName = "app_qt.exe"
 $BuildDir = "build\$Config"
-$ExePath = ".\$BuildDir\$TargetName"
+
+if (-not (Test-Path $BuildDir)) {
+    Write-Host "Build directory not found: $BuildDir" -ForegroundColor Red
+    Write-Host "Build the project first with .\build.ps1 $Config" -ForegroundColor Yellow
+    exit 1
+}
+
+$BuildDirPath = (Resolve-Path $BuildDir).Path
+$ExePath = Join-Path $BuildDirPath $TargetName
+$EngineDllPath = Join-Path $BuildDirPath "engine.dll"
 
 if (-not (Test-Path $ExePath)) {
     Write-Host "Executable not found: $ExePath" -ForegroundColor Red
@@ -17,9 +26,17 @@ if (-not (Test-Path $ExePath)) {
     exit 1
 }
 
+if (-not (Test-Path $EngineDllPath)) {
+    Write-Host "Engine DLL not found: $EngineDllPath" -ForegroundColor Red
+    Write-Host "Build the project first with .\build.ps1 $Config" -ForegroundColor Yellow
+    exit 1
+}
+
+Write-Host "Engine runtime: $EngineDllPath" -ForegroundColor Cyan
+
 Write-Host "=== Copying vcpkg dependencies ===" -ForegroundColor Green
 
-$VcpkgBinPath = "C:\vcpkg\installed\x64-windows\bin"
+$VcpkgBinPath = "D:/DevTools\vcpkg\installed\x64-windows\bin"
 
 if (Test-Path $VcpkgBinPath) {
     Copy-Item "$VcpkgBinPath\*.dll" -Destination $BuildDir -Force -ErrorAction SilentlyContinue
@@ -30,7 +47,7 @@ if (Test-Path $VcpkgBinPath) {
 
 Write-Host "`n=== Deploying Qt runtime ===" -ForegroundColor Green
 
-$QtRoot = ""
+$QtRoot = "D:/DevTools/Qt/6.11.2/msvc2022_64"
 if ($env:QT_ROOT -and (Test-Path $env:QT_ROOT)) {
     $QtRoot = $env:QT_ROOT
 } else {
@@ -70,8 +87,16 @@ if (-not $QtRoot) {
 }
 
 Write-Host "`n=== Running application ===" -ForegroundColor Green
-& $ExePath
+Push-Location $BuildDirPath
+try {
+    & $ExePath
+    $ApplicationExitCode = $LASTEXITCODE
+}
+finally {
+    Pop-Location
+}
 
-if ($LASTEXITCODE -ne 0) {
-    Write-Host "`nApplication exited with code: $LASTEXITCODE" -ForegroundColor Yellow
+if ($ApplicationExitCode -ne 0) {
+    Write-Host "`nApplication exited with code: $ApplicationExitCode" -ForegroundColor Yellow
+    exit $ApplicationExitCode
 }

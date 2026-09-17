@@ -1,2 +1,0 @@
-- light transforms (most pointlightban van, legyen light-ban, orientációt használja dirlight)
-- material 

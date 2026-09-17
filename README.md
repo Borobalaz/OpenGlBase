@@ -5,6 +5,27 @@ Author: Boroczky Balazs
 
 This project is a C++17 Qt 6 Widgets + OpenGL application built with CMake and dependencies managed through vcpkg.
 
+The runtime is split into two targets:
+
+- `engine`: a Qt-independent shared library containing the rendering, scene, geometry, texture, volume, and input engine.
+- `app_qt`: the Qt Widgets executable containing the application shell, viewport, inspector, and other UI code.
+
+The UI links against `engine`, and both `engine.dll` and `app_qt.exe` are emitted into the same configuration directory so the executable can load the engine at runtime.
+
+The source tree is organized by ownership:
+
+```text
+engine/
+	include/engine/   Engine public headers
+	src/              Engine implementation
+	assets/           Engine models, textures, and volumes
+	shaders/          Engine shader sources
+ui/
+	include/ui/       Qt UI headers and widgets
+	src/app/          Application entry point
+	src/              Qt UI implementation
+```
+
 ### 1. Prerequisites
 
 - OS: Windows (PowerShell scripts in this repository target Windows)
@@ -97,6 +118,7 @@ Run only (after building):
 ```
 
 `debug.ps1` also runs `windeployqt` (when found via `QT_ROOT` or known Qt install paths) so the Qt runtime plugins are copied next to `app_qt.exe`.
+The same directory contains `engine.dll`; `debug.ps1` verifies it before launching the UI.
 
 ## Manual CMake Build (Alternative)
 
@@ -109,7 +131,7 @@ cmake --build build --config Release
 
 ### Build-Time Discovery Overrides
 
-If your data is not organized in subject/session folders, pass explicit paths directly through `DtiVolumeScene::LoadDataset(...)` from `src/app/main.cpp`.
+If your data is not organized in subject/session folders, pass explicit paths directly through `DtiVolumeScene::LoadDataset(...)` from `ui/src/app/main.cpp`.
 
 ## Output
 
@@ -117,14 +139,15 @@ Expected executable path:
 
 ```text
 build/Release/app_qt.exe
+build/Release/engine.dll
 ```
 
 ## Qt Application Structure
 
-- Entry point: `src/app/main.cpp` creates `QApplication`, configures OpenGL 3.3 core profile, and shows `WidgetsMainWindow`.
-- Host window: `src/ui/windows/WidgetsMainWindow.cpp` owns the Qt widget layout (viewport, object list, inspector, render stats).
-- OpenGL viewport: `src/ui/widgets/OpenGLViewportWidget.cpp` derives from `QOpenGLWidget`, drives repaint via `QTimer`, and runs `Scene::Update` + `Scene::Render` inside `paintGL()`.
-- DTI specialization: `src/ui/widgets/DTIViewportWidget.cpp` builds `DtiVolumeScene` and loads DWI/bval/bvec dataset inputs.
+- Entry point: `ui/src/app/main.cpp` creates `QApplication`, configures OpenGL 3.3 core profile, and shows `WidgetsMainWindow`.
+- Host window: `ui/src/windows/WidgetsMainWindow.cpp` owns the Qt widget layout (viewport, object list, inspector, render stats).
+- OpenGL viewport: `ui/src/widgets/OpenGLViewportWidget.cpp` derives from `QOpenGLWidget`, drives repaint via `QTimer`, and runs `Scene::Update` + `Scene::Render` inside `paintGL()`.
+- DTI specialization: `ui/src/widgets/DTIViewportWidget.cpp` builds `DtiVolumeScene` and loads DWI/bval/bvec dataset inputs.
 
 ## Volume File Support
 
@@ -346,8 +369,8 @@ Volume o-- Geometry : volumeGeometry
 
 The application is hosted by a Qt Widgets main window (`WidgetsMainWindow`) with a `QOpenGLWidget`-based viewport (`OpenGLViewportWidget` / `DTIViewportWidget`) that drives `Scene::Update` and `Scene::Render`.
 
-Entry point: `src/app/main.cpp`
-Window/runtime integration: `src/ui/windows/WidgetsMainWindow.cpp` and `src/ui/widgets/OpenGLViewportWidget.cpp`
+Entry point: `ui/src/app/main.cpp`
+Window/runtime integration: `ui/src/windows/WidgetsMainWindow.cpp` and `ui/src/widgets/OpenGLViewportWidget.cpp`
 
 ### Uniform Provider System
 

@@ -9,7 +9,7 @@ $ErrorActionPreference = "Stop"
 
 $Target = "app_qt"
 
-$QtRoot = ""
+$QtRoot = "D:/DevTools/Qt/6.11.2/msvc2022_64"
 if ($env:QT_ROOT -and (Test-Path $env:QT_ROOT)) {
     $QtRoot = $env:QT_ROOT
 } else {
@@ -42,7 +42,7 @@ Write-Host "=== Configuring CMake ===" -ForegroundColor Green
 $cmakeArgs = @(
     "-S", ".",
     "-B", "build",
-    "-DCMAKE_TOOLCHAIN_FILE=C:/vcpkg/scripts/buildsystems/vcpkg.cmake",
+    "-DCMAKE_TOOLCHAIN_FILE=D:/DevTools/vcpkg/scripts/buildsystems/vcpkg.cmake",
     "-DCMAKE_BUILD_TYPE=$Config"
 )
 
@@ -68,4 +68,9 @@ if ($LASTEXITCODE -ne 0) {
 }
 
 Write-Host "`n=== Build completed successfully ===" -ForegroundColor Green
+if (-not (Test-Path "build\$Config\engine.dll")) {
+    Write-Host "Engine DLL was not produced: build\$Config\engine.dll" -ForegroundColor Red
+    exit 1
+}
 Write-Host "Executable: build\$Config\$Target.exe" -ForegroundColor Cyan
+Write-Host "Engine DLL: build\$Config\engine.dll" -ForegroundColor Cyan

@@ -1,4 +1,4 @@
-#include "ui/widgets/InspectorWidget.h"
+#include "widgets/InspectorWidget.h"
 
 #include <QHBoxLayout>
 #include <QLabel>
@@ -7,7 +7,7 @@
 
 #include <QObject>
 
-#include "ui/widgets/inspect_fields/IInspectWidget.h"
+#include "widgets/inspect_fields/IInspectWidget.h"
 
 InspectorWidget::InspectorWidget(QWidget *parent)
   : QFrame(parent)

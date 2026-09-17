@@ -1,4 +1,4 @@
-#include "ui/styles/DarkThemeStyle.h"
+#include "styles/DarkThemeStyle.h"
 
 QString DarkThemeStyle::styleSheet() const
 {

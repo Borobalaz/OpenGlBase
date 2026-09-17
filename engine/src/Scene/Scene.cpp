@@ -388,8 +388,6 @@ std::vector<RenderProxy> Scene::GetRenderProxies() const
 
     RenderProxy proxy;
     proxy.frameUniforms = sceneUniforms;
-    proxy.preferredShader = nullptr;
-    proxy.geometry = nullptr;
     proxy.visible = true;
 
     drawable->BuildRenderProxy(proxy);

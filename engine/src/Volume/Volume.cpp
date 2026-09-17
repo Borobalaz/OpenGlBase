@@ -58,10 +58,15 @@ void Volume::BuildRenderProxy(RenderProxy& renderProxy) const
   }
 
   renderProxy.visible = true;
-  renderProxy.customDraw = [this, frameUniforms = renderProxy.frameUniforms]()
-  {
-    Draw(frameUniforms);
-  };
+  auto textures = std::make_shared<VolumeTextureSet>(textureSet);
+  renderProxy.data.Append(VolumeRenderCommand{
+    geometry,
+    shader,
+    std::move(textures),
+    dimensions,
+    BuildModelMatrix(),
+    glm::inverse(BuildModelMatrix()),
+    renderProxy.frameUniforms});
 }
 
 /**

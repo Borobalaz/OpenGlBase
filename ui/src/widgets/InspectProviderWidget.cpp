@@ -1,4 +1,4 @@
-#include "ui/widgets/InspectProviderWidget.h"
+#include "widgets/InspectProviderWidget.h"
 
 #include <QHBoxLayout>
 #include <QLabel>

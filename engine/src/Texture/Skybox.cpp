@@ -66,50 +66,9 @@ void Skybox::BuildRenderProxy(RenderProxy& renderProxy) const
     return;
   }
 
-  // Use the skybox's shader and geometry for drawing, but perform custom GL state setup
-  // via a customDraw lambda so we can disable depth writes and adjust culling.
-  std::shared_ptr<Shader> shaderCopy = shader;
-  std::shared_ptr<Geometry> geometryCopy = geometry;
-  std::shared_ptr<TextureCube> cubemapCopy = cubemap;
-
-  // Capture the frame uniforms by value so the lambda has access to the camera/projection
-  // that Scene already placed into renderProxy.frameUniforms before calling this method.
-  auto frameUniformsCopy = renderProxy.frameUniforms;
-
-  renderProxy.preferredShader = shaderCopy.get();
-  renderProxy.geometry = geometryCopy.get();
-
-  renderProxy.customDraw = [shaderCopy, geometryCopy, cubemapCopy, frameUniformsCopy]() {
-    if (!shaderCopy || !geometryCopy || !cubemapCopy)
-    {
-      return;
-    }
-
-    GLboolean previousDepthWriteMask = GL_TRUE;
-    GLint previousDepthFunc = GL_LESS;
-    GLboolean cullFaceEnabled = glIsEnabled(GL_CULL_FACE);
-
-    glGetBooleanv(GL_DEPTH_WRITEMASK, &previousDepthWriteMask);
-    glGetIntegerv(GL_DEPTH_FUNC, &previousDepthFunc);
-
-    glDepthMask(GL_FALSE);
-    glDepthFunc(GL_LEQUAL);
-    glDisable(GL_CULL_FACE);
-
-    shaderCopy->Use();
-    frameUniformsCopy.Apply(*shaderCopy);
-    shaderCopy->Apply(*shaderCopy);
-    constexpr unsigned int kSkyboxTextureUnit = 5;
-    shaderCopy->SetTexture("skyboxTexture", kSkyboxTextureUnit);
-    cubemapCopy->Bind(kSkyboxTextureUnit);
-    geometryCopy->Draw(*shaderCopy);
-
-    if (cullFaceEnabled)
-    {
-      glEnable(GL_CULL_FACE);
-    }
-
-    glDepthMask(previousDepthWriteMask);
-    glDepthFunc(previousDepthFunc);
-  };
+  renderProxy.data.Append(SkyboxRenderCommand{
+    geometry,
+    shader,
+    cubemap,
+    renderProxy.frameUniforms});
 }

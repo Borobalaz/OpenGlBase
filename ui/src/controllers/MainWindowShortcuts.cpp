@@ -1,4 +1,4 @@
-#include "ui/controllers/MainWindowShortcuts.h"
+#include "controllers/MainWindowShortcuts.h"
 
 #include <QKeySequence>
 #include <QShortcut>

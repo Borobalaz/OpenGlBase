@@ -1,17 +1,17 @@
-#include "ui/windows/WidgetsMainWindow.h"
+#include "windows/WidgetsMainWindow.h"
 
 #include <QFrame>
 #include <QGridLayout>
 #include <QVBoxLayout>
 
-#include "ui/qt-adapters/QTSceneInspector.h"
-#include "ui/controllers/MainWindowShortcuts.h"
-#include "ui/styles/DarkThemeStyle.h"
-#include "ui/styles/LightThemeStyle.h"
-#include "ui/widgets/OpenGLViewportWidget.h"
-#include "ui/widgets/InspectorWidget.h"
-#include "ui/widgets/RenderStatisticsWidget.h"
-#include "ui/widgets/SceneObjectListWidget.h"
+#include "qt-adapters/QTSceneInspector.h"
+#include "controllers/MainWindowShortcuts.h"
+#include "styles/DarkThemeStyle.h"
+#include "styles/LightThemeStyle.h"
+#include "widgets/OpenGLViewportWidget.h"
+#include "widgets/InspectorWidget.h"
+#include "widgets/RenderStatisticsWidget.h"
+#include "widgets/SceneObjectListWidget.h"
 
 /**
  * @brief Construct a new Widgets Main Window:: Widgets Main Window object

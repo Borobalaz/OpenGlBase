@@ -1,17 +1,17 @@
-#include "ui/qt-adapters/QTSceneInspector.h"
+#include "qt-adapters/QTSceneInspector.h"
 
 #include <limits>
 #include <sstream>
 
 #include <QCoreApplication>
 #include <QHash>
-#include "ui/widgets/inspect_fields/InspectColorFieldWidget.h"
-#include "ui/widgets/inspect_fields/InspectNumberFieldWidget.h"
-#include "ui/widgets/inspect_fields/InspectTextFieldWidget.h"
-#include "ui/widgets/inspect_fields/InspectVec3FieldWidget.h"
-#include "ui/widgets/inspect_fields/InspectProvider.h"
-#include "ui/widgets/inspect_fields/IInspectWidget.h"
-#include "ui/widgets/inspect_fields/InspectCheckboxFieldWidget.h"
+#include "widgets/inspect_fields/InspectColorFieldWidget.h"
+#include "widgets/inspect_fields/InspectNumberFieldWidget.h"
+#include "widgets/inspect_fields/InspectTextFieldWidget.h"
+#include "widgets/inspect_fields/InspectVec3FieldWidget.h"
+#include "widgets/inspect_fields/InspectProvider.h"
+#include "widgets/inspect_fields/IInspectWidget.h"
+#include "widgets/inspect_fields/InspectCheckboxFieldWidget.h"
 
 namespace
 {

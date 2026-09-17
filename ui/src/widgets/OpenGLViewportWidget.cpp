@@ -1,4 +1,4 @@
-#include "ui/widgets/OpenGLViewportWidget.h"
+#include "widgets/OpenGLViewportWidget.h"
 
 #include <iostream>
 #include <memory>
@@ -14,12 +14,11 @@
 
 #include <glm/gtc/matrix_inverse.hpp>
 
-#include "engine/Scene/Scene.h"
-#include "engine/EngineOpenGL.h"
+#include "Scene/Scene.h"
+#include "EngineOpenGL.h"
 #include "Camera/InspectionCameraMovement.h"
-#include "RenderCore/LegacyRenderProxyExtractor.h"
-#include "ui/qt-adapters/QTSceneInspector.h"
-#include "ui/state/RenderStatistics.h"
+#include "qt-adapters/QTSceneInspector.h"
+#include "state/RenderStatistics.h"
 
 namespace
 {
@@ -112,18 +111,6 @@ void OpenGLViewportWidget::initializeScene()
   movement = nullptr;
   scene = std::make_unique<Scene>();
   scene->Init();
-
-  if (!hasRegisteredExtractors)
-  {
-    ExtractorRegistrationInfo extractorInfo;
-    extractorInfo.debugName = "LegacyRenderProxyExtractor";
-    extractorInfo.phase = ExtractionPhase::Geometry;
-    extractorInfo.priority = 0;
-    extractionRegistry.RegisterExtractor(
-      std::make_unique<LegacyRenderProxyExtractor>(),
-      extractorInfo);
-    hasRegisteredExtractors = true;
-  }
 
   if (std::shared_ptr<Camera> camera = scene->GetCamera())
   {

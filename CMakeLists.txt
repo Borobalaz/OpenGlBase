@@ -40,7 +40,6 @@ set_target_properties(engine PROPERTIES WINDOWS_EXPORT_ALL_SYMBOLS ON)
 
 target_include_directories(engine PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/engine/include
-    ${CMAKE_CURRENT_SOURCE_DIR}/engine/include/engine
     ${STB_INCLUDE_DIR}
 )
 
@@ -54,21 +53,20 @@ target_link_libraries(engine PUBLIC
 add_executable(app_qt
     ${UI_SOURCES}
     ${CMAKE_CURRENT_SOURCE_DIR}/ui/src/app/main.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/ui/include/ui/controllers/MainWindowShortcuts.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/ui/include/ui/widgets/OpenGLViewportWidget.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/ui/include/ui/widgets/InspectProviderWidget.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/ui/include/ui/widgets/InspectorWidget.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/ui/include/ui/state/RenderStatistics.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/ui/include/ui/widgets/RenderStatisticsWidget.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/ui/include/ui/widgets/SceneObjectListWidget.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/ui/include/ui/widgets/inspect_fields/InspectNumberFieldWidget.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/ui/include/ui/windows/WidgetsMainWindow.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/ui/include/ui/qt-adapters/QTSceneInspector.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/ui/include/controllers/MainWindowShortcuts.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/ui/include/widgets/OpenGLViewportWidget.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/ui/include/widgets/InspectProviderWidget.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/ui/include/widgets/InspectorWidget.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/ui/include/state/RenderStatistics.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/ui/include/widgets/RenderStatisticsWidget.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/ui/include/widgets/SceneObjectListWidget.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/ui/include/widgets/inspect_fields/InspectNumberFieldWidget.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/ui/include/windows/WidgetsMainWindow.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/ui/include/qt-adapters/QTSceneInspector.h
 )
 
 target_include_directories(app_qt PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/engine/include
-    ${CMAKE_CURRENT_SOURCE_DIR}/engine/include/engine
     ${CMAKE_CURRENT_SOURCE_DIR}/ui/include
 )
 

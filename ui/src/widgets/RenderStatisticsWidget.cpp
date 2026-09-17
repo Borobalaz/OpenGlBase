@@ -1,9 +1,9 @@
-#include "ui/widgets/RenderStatisticsWidget.h"
+#include "widgets/RenderStatisticsWidget.h"
 
 #include <QFormLayout>
 #include <QLabel>
 
-#include "ui/state/RenderStatistics.h"
+#include "state/RenderStatistics.h"
 
 RenderStatisticsWidget::RenderStatisticsWidget(QWidget *parent)
   : QFrame(parent)

@@ -9,7 +9,6 @@
       "cppStandard": "c++17",
       "includePath": [
         "${workspaceFolder}/engine/include",
-        "${workspaceFolder}/engine/include/engine",
         "${workspaceFolder}/engine/include/**",
         "${workspaceFolder}/engine/src",
         "${workspaceFolder}/engine/src/**",
@@ -37,7 +36,6 @@
       "browse": {
         "path": [
           "${workspaceFolder}/engine/include",
-          "${workspaceFolder}/engine/include/engine",
           "${workspaceFolder}/engine/src",
           "${workspaceFolder}/ui/include",
           "${workspaceFolder}/ui/src",

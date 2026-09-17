@@ -1,11 +1,11 @@
-#include "ui/widgets/SceneObjectListWidget.h"
+#include "widgets/SceneObjectListWidget.h"
 
 #include <QLabel>
 #include <QScrollArea>
 #include <QSignalBlocker>
 #include <QVBoxLayout>
 
-#include "ui/widgets/InspectProviderWidget.h"
+#include "widgets/InspectProviderWidget.h"
 
 SceneObjectListWidget::SceneObjectListWidget(QWidget *parent)
   : QFrame(parent)

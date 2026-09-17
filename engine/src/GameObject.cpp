@@ -74,38 +74,34 @@ void GameObject::BuildRenderProxy(RenderProxy& context) const
   }
 
   context.visible = true;
-  context.preferredShader = nullptr;
-  context.geometry = nullptr;
-
-  const CompositeUniformProvider frameUniforms = context.frameUniforms;
-  context.customDraw = [this, frameUniforms]()
+  MeshRenderBatch batch;
+  for (const auto& mesh : meshes)
   {
-    for (const auto& mesh : meshes)
+    if (!mesh)
     {
-      if (!mesh)
-      {
-        continue;
-      }
-
-      const std::shared_ptr<Geometry> geometry = mesh->GetGeometry();
-      const std::shared_ptr<Material> material = mesh->GetMaterial();
-      if (!geometry || !material)
-      {
-        continue;
-      }
-
-      Shader& shader = material->GetShader();
-      shader.Use();
-
-      CompositeUniformProvider uniforms = frameUniforms;
-      uniforms.AddProvider(*this);
-      uniforms.AddProvider(*material);
-      uniforms.Apply(shader);
-      shader.Apply(shader);
-
-      geometry->Draw(shader);
+      continue;
     }
-  };
+
+    const std::shared_ptr<Geometry> geometry = mesh->GetGeometry();
+    const std::shared_ptr<Material> material = mesh->GetMaterial();
+    if (!geometry || !material)
+    {
+      continue;
+    }
+
+    MeshRenderCommand command;
+    command.geometry = geometry;
+    command.material = material;
+    command.modelMatrix = BuildModelMatrix();
+    command.frameUniforms = context.frameUniforms;
+    batch.draws.push_back(std::move(command));
+  }
+
+  context.visible = !batch.draws.empty();
+  if (context.visible)
+  {
+    context.data.Append(std::move(batch));
+  }
 }
 
 /**

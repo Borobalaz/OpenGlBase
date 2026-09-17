@@ -1,4 +1,4 @@
-#include "ui/styles/LightThemeStyle.h"
+#include "styles/LightThemeStyle.h"
 
 QString LightThemeStyle::styleSheet() const
 {

@@ -6,6 +6,13 @@ RenderFrame RenderFrameBuilder::Build(const SceneSnapshot& snapshot,
 {
   RenderFrame frame;
   RenderExtractionContext context(renderer);
+  for (const RenderProxy& proxy : snapshot.GetRenderProxies())
+  {
+    if (proxy.visible)
+    {
+      frame.data.AppendFrom(proxy.data);
+    }
+  }
   extractionRegistry.ExtractFor(renderer, snapshot, context, frame.data);
   return frame;
 }

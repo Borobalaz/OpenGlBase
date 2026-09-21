@@ -2,10 +2,13 @@
 # Usage: .\build-and-run.ps1 [Debug|Release]
 
 param(
-    [string]$Config = "Release"
+    [string]$Config
 )
 
 $ErrorActionPreference = "Stop"
+
+$Settings = Get-Content (Join-Path $PSScriptRoot "settings.json") -Raw | ConvertFrom-Json
+$Config = if ($Config) { $Config } else { $Settings.project.defaultConfiguration }
 
 Write-Host "=== Building and Running ===" -ForegroundColor Cyan
 

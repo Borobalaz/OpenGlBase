@@ -2,13 +2,20 @@
 # Usage: .\debug.ps1 [Debug|Release]
 
 param(
-    [string]$Config = "Release"
+    [string]$Config
 )
 
 $ErrorActionPreference = "Stop"
 
-$TargetName = "app_qt.exe"
-$BuildDir = "build\$Config"
+$ProjectRoot = $PSScriptRoot
+$Settings = Get-Content (Join-Path $ProjectRoot "settings.json") -Raw | ConvertFrom-Json
+$Config = if ($Config) { $Config } else { $Settings.project.defaultConfiguration }
+$TargetName = $Settings.project.executable
+$BuildDir = Join-Path $ProjectRoot "$($Settings.project.buildDirectory)\$Config"
+
+if ($Settings.qt.bypassQtLicenseCheck) {
+    $env:QT_BYPASS_LICENSE_CHECK = "1"
+}
 
 if (-not (Test-Path $BuildDir)) {
     Write-Host "Build directory not found: $BuildDir" -ForegroundColor Red
@@ -36,7 +43,7 @@ Write-Host "Engine runtime: $EngineDllPath" -ForegroundColor Cyan
 
 Write-Host "=== Copying vcpkg dependencies ===" -ForegroundColor Green
 
-$VcpkgBinPath = "D:/DevTools\vcpkg\installed\x64-windows\bin"
+$VcpkgBinPath = $Settings.toolchain.vcpkgBinaryDirectory
 
 if (Test-Path $VcpkgBinPath) {
     Copy-Item "$VcpkgBinPath\*.dll" -Destination $BuildDir -Force -ErrorAction SilentlyContinue
@@ -47,23 +54,12 @@ if (Test-Path $VcpkgBinPath) {
 
 Write-Host "`n=== Deploying Qt runtime ===" -ForegroundColor Green
 
-$QtRoot = "D:/DevTools/Qt/6.11.2/msvc2022_64"
+$QtRoot = $Settings.qt.root
 if ($env:QT_ROOT -and (Test-Path $env:QT_ROOT)) {
     $QtRoot = $env:QT_ROOT
 } else {
-    $QtCandidates = @(
-        "C:/Qt/6.11.0/msvc2022_64",
-        "C:/Qt/6.10.0/msvc2022_64",
-        "C:/Qt/6.9.0/msvc2022_64",
-        "C:/Qt/6.8.0/msvc2022_64",
-        "C:/Qt/6.7.3/msvc2022_64",
-        "C:/Qt/6.7.2/msvc2022_64",
-        "C:/Qt/6.7.1/msvc2022_64",
-        "C:/Qt/6.7.0/msvc2022_64"
-    )
-
-    foreach ($Candidate in $QtCandidates) {
-        if (Test-Path (Join-Path $Candidate "bin/windeployqt.exe")) {
+    foreach ($Candidate in $Settings.qt.candidates) {
+        if (Test-Path (Join-Path $Candidate $Settings.qt.deployTool)) {
             $QtRoot = $Candidate
             break
         }
@@ -73,9 +69,12 @@ if ($env:QT_ROOT -and (Test-Path $env:QT_ROOT)) {
 if (-not $QtRoot) {
     Write-Host "Warning: Could not locate Qt runtime root. Set QT_ROOT to enable automatic Qt deployment." -ForegroundColor Yellow
 } else {
-    $DeployTool = Join-Path $QtRoot "bin/windeployqt.exe"
+    $DeployTool = Join-Path $QtRoot $Settings.qt.deployTool
     if (Test-Path $DeployTool) {
-        & $DeployTool --no-translations --no-opengl-sw --dir $BuildDir $ExePath
+        $DeployArguments = @("--dir", $BuildDir, $ExePath)
+        if (-not $Settings.cmake.deployQtTranslations) { $DeployArguments += "--no-translations" }
+        if (-not $Settings.cmake.deployQtOpenGLSoftwareRendering) { $DeployArguments += "--no-opengl-sw" }
+        & $DeployTool @DeployArguments
         if ($LASTEXITCODE -ne 0) {
             Write-Host "Warning: windeployqt failed (code: $LASTEXITCODE)." -ForegroundColor Yellow
         } else {

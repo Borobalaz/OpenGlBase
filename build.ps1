@@ -2,29 +2,22 @@
 # Usage: .\build.ps1 [Debug|Release]
 
 param(
-    [string]$Config = "Release"
+    [string]$Config
 )
 
 $ErrorActionPreference = "Stop"
 
-$Target = "app_qt"
+$ProjectRoot = $PSScriptRoot
+$Settings = Get-Content (Join-Path $ProjectRoot "settings.json") -Raw | ConvertFrom-Json
+$Config = if ($Config) { $Config } else { $Settings.project.defaultConfiguration }
+$Target = $Settings.project.target
+$BuildDirectory = Join-Path $ProjectRoot $Settings.project.buildDirectory
 
-$QtRoot = "D:/DevTools/Qt/6.11.2/msvc2022_64"
+$QtRoot = $Settings.qt.root
 if ($env:QT_ROOT -and (Test-Path $env:QT_ROOT)) {
     $QtRoot = $env:QT_ROOT
 } else {
-    $QtCandidates = @(
-        "C:/Qt/6.11.0/msvc2022_64",
-        "C:/Qt/6.10.0/msvc2022_64",
-        "C:/Qt/6.9.0/msvc2022_64",
-        "C:/Qt/6.8.0/msvc2022_64",
-        "C:/Qt/6.7.3/msvc2022_64",
-        "C:/Qt/6.7.2/msvc2022_64",
-        "C:/Qt/6.7.1/msvc2022_64",
-        "C:/Qt/6.7.0/msvc2022_64"
-    )
-
-    foreach ($Candidate in $QtCandidates) {
+    foreach ($Candidate in $Settings.qt.candidates) {
         if (Test-Path (Join-Path $Candidate "lib/cmake/Qt6/Qt6Config.cmake")) {
             $QtRoot = $Candidate
             break
@@ -40,14 +33,14 @@ if (-not $QtRoot) {
 
 Write-Host "=== Configuring CMake ===" -ForegroundColor Green
 $cmakeArgs = @(
-    "-S", ".",
-    "-B", "build",
-    "-DCMAKE_TOOLCHAIN_FILE=D:/DevTools/vcpkg/scripts/buildsystems/vcpkg.cmake",
+    "-S", $ProjectRoot,
+    "-B", $BuildDirectory,
+    "-DCMAKE_TOOLCHAIN_FILE=$($Settings.toolchain.cmakeToolchainFile)",
     "-DCMAKE_BUILD_TYPE=$Config"
 )
 
-$QtCmakeDir = (Join-Path $QtRoot "lib/cmake") -replace "\\", "/"
-$Qt6Dir = (Join-Path $QtRoot "lib/cmake/Qt6") -replace "\\", "/"
+$QtCmakeDir = (Join-Path $QtRoot $Settings.qt.cmakeDirectory) -replace "\\", "/"
+$Qt6Dir = (Join-Path $QtRoot $Settings.qt.configDirectory) -replace "\\", "/"
 $cmakeArgs += "-DCMAKE_PREFIX_PATH=$QtCmakeDir"
 $cmakeArgs += "-DQt6_DIR=$Qt6Dir"
 Write-Host "Using Qt from: $QtRoot" -ForegroundColor Cyan
@@ -60,7 +53,7 @@ if ($LASTEXITCODE -ne 0) {
 }
 
 Write-Host "`n=== Building the project ===" -ForegroundColor Green
-cmake --build build --config $Config --target $Target
+cmake --build $BuildDirectory --config $Config --target $Target
 
 if ($LASTEXITCODE -ne 0) {
     Write-Host "Build failed!" -ForegroundColor Red
@@ -68,9 +61,9 @@ if ($LASTEXITCODE -ne 0) {
 }
 
 Write-Host "`n=== Build completed successfully ===" -ForegroundColor Green
-if (-not (Test-Path "build\$Config\engine.dll")) {
-    Write-Host "Engine DLL was not produced: build\$Config\engine.dll" -ForegroundColor Red
+if (-not (Test-Path (Join-Path $BuildDirectory "$Config\$($Settings.project.engineLibrary)"))) {
+    Write-Host "Engine DLL was not produced: $(Join-Path $BuildDirectory "$Config\$($Settings.project.engineLibrary)")" -ForegroundColor Red
     exit 1
 }
-Write-Host "Executable: build\$Config\$Target.exe" -ForegroundColor Cyan
-Write-Host "Engine DLL: build\$Config\engine.dll" -ForegroundColor Cyan
+Write-Host "Executable: $(Join-Path $BuildDirectory "$Config\$($Settings.project.executable)")" -ForegroundColor Cyan
+Write-Host "Engine DLL: $(Join-Path $BuildDirectory "$Config\$($Settings.project.engineLibrary)")" -ForegroundColor Cyan

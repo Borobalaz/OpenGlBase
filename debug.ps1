@@ -14,7 +14,7 @@ $TargetName = $Settings.project.executable
 $BuildDir = Join-Path $ProjectRoot "$($Settings.project.buildDirectory)\$Config"
 
 if ($Settings.qt.bypassQtLicenseCheck) {
-    $env:QT_BYPASS_LICENSE_CHECK = "1"
+    $env:QTFRAMEWORK_BYPASS_LICENSE_CHECK = "1"
 }
 
 if (-not (Test-Path $BuildDir)) {

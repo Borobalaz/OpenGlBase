@@ -15,7 +15,7 @@ $BuildDirectory = Join-Path $ProjectRoot $Settings.project.buildDirectory
 
 
 if ($Settings.qt.bypassQtLicenseCheck) {
-    $env:QT_BYPASS_LICENSE_CHECK = "1"
+    $env:QTFRAMEWORK_BYPASS_LICENSE_CHECK = "1"
 }
 
 $QtRoot = $Settings.qt.root

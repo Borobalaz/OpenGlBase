@@ -55,6 +55,7 @@ void PointLight::Apply(Shader& shader) const
   shader.SetVec3(prefix + ".ambient", ambient);
   shader.SetVec3(prefix + ".diffuse", diffuse);
   shader.SetVec3(prefix + ".specular", specular);
+  shader.SetFloat(prefix + ".intensity", intensity);
   shader.SetVec3(prefix + ".position", transform.GetPosition());
   shader.SetVec3(prefix + ".direction", glm::vec3(0.0f, -1.0f, 0.0f));
   shader.SetFloat(prefix + ".constant", constant);

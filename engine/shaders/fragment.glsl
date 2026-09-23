@@ -32,6 +32,7 @@ struct LightUniforms {
   vec3 ambient;
   vec3 diffuse;
   vec3 specular;
+  float intensity;
   float constant;
   float linear;
   float quadratic;
@@ -91,7 +92,7 @@ vec3 ComputeLight(LightUniforms light,
   vec3 ambientTerm = light.ambient * material.ambientColor;
   vec3 diffuseTerm = light.diffuse * diffuseStrength * diffuseAlbedo;
   vec3 specularTerm = light.specular * specularStrength * specularAlbedo;
-  return (ambientTerm + diffuseTerm + specularTerm) * attenuation;
+  return (ambientTerm + diffuseTerm + specularTerm) * attenuation * light.intensity;
 }
 
 void main()

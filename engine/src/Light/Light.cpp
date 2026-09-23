@@ -1,5 +1,7 @@
 #include "Light/Light.h"
 
+#include <algorithm>
+
 
 Light::Light(const std::string& id,
              const glm::vec3& ambient,
@@ -28,6 +30,18 @@ std::vector<InspectFieldPtr> Light::GetInspectFields()
       enabled = *boolean;
   });
 
+  auto intensityField = MakeInspectField("intensity", "Intensity", "Light", InspectFieldType::Number,
+    static_cast<double>(intensity),
+    [this]() -> InspectValue { return static_cast<double>(intensity); },
+    [this](const InspectValue &value)
+  {
+    if (const auto *number = std::get_if<double>(&value))
+      intensity = static_cast<float>(std::max(0.0, *number));
+  });
+  intensityField->minimum = 0.0;
+  intensityField->maximum = 100.0;
+  intensityField->step = 0.1;
+
   auto ambientField = MakeInspectField("ambient", "Ambient", "Color", InspectFieldType::Color, ambient,
     [this]() -> InspectValue { return ambient; },
     [this](const InspectValue &value)
@@ -49,7 +63,7 @@ std::vector<InspectFieldPtr> Light::GetInspectFields()
     if (const auto *color = std::get_if<glm::vec3>(&value)) specular = *color;
   });
 
-  return {enabledField, ambientField, diffuseField, specularField};
+  return {enabledField, intensityField, ambientField, diffuseField, specularField};
 }
 
 void Light::SetUniformIndex(int index)

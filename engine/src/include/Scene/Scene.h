@@ -85,8 +85,6 @@ public:
   }
   void ClearVolumes();
 
-  void AddInspectProvider(std::shared_ptr<InspectProvider> provider) { inspectProviders.push_back(provider.get()); }
-  void AddInspectProvider(InspectProvider* provider) { inspectProviders.push_back(provider); }
   void RebuildInspectProviders();
 
   // Shader management
@@ -95,9 +93,16 @@ public:
   // Hot reload: recheck all shader files and reload if changed
   void ReloadShadersIfChanged();
 
-  // Inspection provider discovery
-  std::vector<InspectProvider*> GetInspectProviders() const { return inspectProviders; }
-  std::vector<std::string> GetInspectProviderNames() const;
+  // Inspection provider discovery: weak_ptr-backed so callers never hold a dangling raw pointer
+  struct InspectProviderEntry
+  {
+    std::weak_ptr<InspectProvider> provider;
+    std::string id; // stable across rebuilds as long as the same object persists
+  };
+  std::vector<InspectProviderEntry> GetInspectProviderEntries() const { return inspectProviderEntries; }
+
+  // Increments every time RebuildInspectProviders() runs; lets consumers detect structural changes cheaply.
+  int GetProviderGeneration() const { return providerGeneration; }
 
   // Inspect provider implementation
   std::string GetInspectDisplayName() const override { return "Scene"; }
@@ -121,5 +126,7 @@ private:
   std::vector<std::shared_ptr<Shader>> shaders;
   InputState inputState;
 
-  std::vector<InspectProvider*> inspectProviders;
+  std::shared_ptr<InspectProvider> selfInspectProvider; // non-owning alias of `this`; Scene's lifetime always outlives its use
+  std::vector<InspectProviderEntry> inspectProviderEntries;
+  int providerGeneration = 0;
 };

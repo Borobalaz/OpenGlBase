@@ -13,6 +13,11 @@ $Config = if ($Config) { $Config } else { $Settings.project.defaultConfiguration
 $Target = $Settings.project.target
 $BuildDirectory = Join-Path $ProjectRoot $Settings.project.buildDirectory
 
+
+if ($Settings.qt.bypassQtLicenseCheck) {
+    $env:QT_BYPASS_LICENSE_CHECK = "1"
+}
+
 $QtRoot = $Settings.qt.root
 if ($env:QT_ROOT -and (Test-Path $env:QT_ROOT)) {
     $QtRoot = $env:QT_ROOT

@@ -10,6 +10,8 @@
       "includePath": [
         "${workspaceFolder}/engine/include",
         "${workspaceFolder}/engine/include/**",
+        "${workspaceFolder}/engine/src/include",
+        "${workspaceFolder}/engine/src/include/**",
         "${workspaceFolder}/engine/src",
         "${workspaceFolder}/engine/src/**",
         "${workspaceFolder}/ui/include",
@@ -36,6 +38,7 @@
       "browse": {
         "path": [
           "${workspaceFolder}/engine/include",
+          "${workspaceFolder}/engine/src/include",
           "${workspaceFolder}/engine/src",
           "${workspaceFolder}/ui/include",
           "${workspaceFolder}/ui/src",

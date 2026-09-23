@@ -63,6 +63,7 @@ public:
   virtual std::vector<InspectFieldPtr> GetInspectFields() = 0;
   virtual bool HasVisibility() const { return false; }
   virtual bool IsVisible() const { return true; }
+  virtual void SetVisible(bool visible) { (void)visible; } // no-op unless HasVisibility() is overridden to return true
   virtual std::optional<float> CastRay(const glm::vec3& rayOrigin, const glm::vec3& rayDirection) const
   {
     (void)rayOrigin;

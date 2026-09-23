@@ -42,6 +42,7 @@ public:
   std::optional<float> CastRay(const glm::vec3& rayOrigin, const glm::vec3& rayDirection) const override;
   bool HasVisibility() const override { return true; }
   bool IsVisible() const override { return visible; }
+  void SetVisible(bool newVisible) override { visible = newVisible; }
   std::string GetInspectDisplayName() const override;
 
 private:

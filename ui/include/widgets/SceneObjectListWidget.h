@@ -6,7 +6,7 @@
 
 #include <QFrame>
 
-#include "widgets/inspect_fields/InspectProvider.h"
+#include "qt-adapters/InspectObjectSummary.h"
 
 class QScrollArea;
 class QVBoxLayout;
@@ -19,7 +19,7 @@ class SceneObjectListWidget : public QFrame
 public:
   explicit SceneObjectListWidget(QWidget *parent = nullptr);
 
-  void setObjects(std::vector<InspectProvider*> providers);
+  void setObjects(std::vector<InspectObjectSummary> objects);
   void setCurrentProviderName(const std::string &providerName, bool emitSignal = false);
 
 signals:

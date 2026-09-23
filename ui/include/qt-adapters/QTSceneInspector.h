@@ -11,34 +11,38 @@
 #include <QTimer>
 #include <QVariant>
 
-#include "Inspection/InspectField.h"
+#include "Inspection/IInspectionService.h"
+#include "qt-adapters/InspectionSession.h"
+#include "qt-adapters/InspectObjectSummary.h"
 #include "widgets/inspect_fields/IInspectWidget.h"
 
-class InspectProvider;
-
+/**
+ * @brief Thin Qt adapter around InspectionSession: owns the polling timer and converts
+ *  engine-neutral InspectField/InspectValue data into Qt widgets/QVariant for the UI.
+ */
 class QTSceneInspector : public QObject
 {
   Q_OBJECT
 public:
   explicit QTSceneInspector(QObject* parent = nullptr);
 
+  void SetInspectionService(IInspectionService* service);
+
   std::string selectedObjectName() const;
-  void setSelectedObjectName(const std::string& name);
+  void setSelectedObjectName(const std::string& id);
   bool selectObjectByRay(const glm::vec3& rayOrigin, const glm::vec3& rayDirection);
 
   QObjectList fields() const;
   int fieldRevision() const;
 
-  void Update(const std::vector<InspectProvider*>& providers);
-  void SetProviders(const std::vector<InspectProvider*>& providers);
-  const std::vector<InspectProvider*>& getProviders() const { return providers; }
-
   QVariantMap fieldMeta(const QString& fieldId) const;
   QVariant fieldValue(const QString& fieldId) const;
   bool setFieldValue(const QString& fieldId, const QVariant& value);
-  bool hasVisibility(const std::string& providerName) const;
-  bool isVisible(const std::string& providerName) const;
-  bool setVisible(const std::string& providerName, bool visible);
+  bool hasVisibility(const std::string& providerId) const;
+  bool isVisible(const std::string& providerId) const;
+  bool setVisible(const std::string& providerId, bool visible);
+
+  std::vector<InspectObjectSummary> getProviders() const;
 
 signals:
   void providersChanged();
@@ -51,12 +55,10 @@ signals:
 private:
   void RebuildFieldObjects();
   void SyncSnapshots();
+  void HandleProvidersChanged();
   std::shared_ptr<IInspectWidget> FindField(const QString& fieldId) const;
-  InspectProvider* FindProviderByName(const std::string& name) const;
-  std::shared_ptr<IInspectWidget> FindVisibilityField(const std::vector<std::shared_ptr<IInspectWidget>>& fields) const;
 
-  std::vector<InspectProvider*> providers;  // references to the inspectable objects in scene
-  std::string selectedProviderName = "";
+  InspectionSession session;
   int revision = 0;
   std::vector<std::shared_ptr<IInspectWidget>> currentFields; // fields of the currently selected object
   QObjectList fieldObjects;

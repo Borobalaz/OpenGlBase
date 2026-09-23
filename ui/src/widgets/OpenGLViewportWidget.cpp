@@ -12,11 +12,6 @@
 #include <QWheelEvent>
 #include <QtGlobal>
 
-#include <glm/gtc/matrix_inverse.hpp>
-
-#include "Scene/Scene.h"
-#include "EngineOpenGL.h"
-#include "Camera/InspectionCameraMovement.h"
 #include "qt-adapters/QTSceneInspector.h"
 #include "state/RenderStatistics.h"
 
@@ -90,6 +85,16 @@ QTSceneInspector &OpenGLViewportWidget::inspectAdapter() const
   return *inspectAdapterObject;
 }
 
+void OpenGLViewportWidget::SetFillColor(const glm::vec3& color)
+{
+  fillColor = color;
+  if (engine)
+  {
+    engine->SetFillColor(fillColor);
+    update();
+  }
+}
+
 /**
  * @brief Override of QOpenGLWidget::initializeGL. 
  *  This is called once when the OpenGL context is ready.
@@ -97,7 +102,8 @@ QTSceneInspector &OpenGLViewportWidget::inspectAdapter() const
  */
 void OpenGLViewportWidget::initializeGL()
 {
-  if (!InitializeEngineOpenGL(QtGetProcAddress))
+  engine = std::make_unique<Engine>();
+  if (!engine->InitializeOpenGL(QtGetProcAddress))
   {
     std::cout << "Failed to initialize GLAD in widgets OpenGL context.\n";
     return;
@@ -108,22 +114,12 @@ void OpenGLViewportWidget::initializeGL()
 
 void OpenGLViewportWidget::initializeScene()
 {
-  movement = nullptr;
-  scene = std::make_unique<Scene>();
-  scene->Init();
+  engine->CreateScene();
+  engine->SetFillColor(fillColor);
 
-  if (std::shared_ptr<Camera> camera = scene->GetCamera())
-  {
-    auto *inspectionMovement = new InspectionCameraMovement();
-    inspectionMovement->SetInputState(&pendingInputState);
-    movement = inspectionMovement;
-    camera->SetMoveComponent(std::unique_ptr<BaseMovement>(inspectionMovement));
-  }
-
-  scene->RebuildInspectProviders();
   if (inspectAdapterObject)
   {
-    inspectAdapterObject->SetProviders(scene->GetInspectProviders());
+    inspectAdapterObject->SetInspectionService(&engine->GetInspectionService());
   }
 
   elapsedTimer.start();
@@ -139,9 +135,9 @@ void OpenGLViewportWidget::initializeScene()
  */
 void OpenGLViewportWidget::resizeGL(int width, int height)
 {
-  if (scene && height > 0)
+  if (engine)
   {
-    scene->SetCameraAspect(static_cast<float>(width) / static_cast<float>(height));
+    engine->SetViewportSize(width, height);
   }
 }
 
@@ -151,21 +147,15 @@ void OpenGLViewportWidget::resizeGL(int width, int height)
  */
 void OpenGLViewportWidget::paintGL()
 {
-  if (!scene)
+  if (!engine)
   {
     return;
   }
 
-  // Keep inspector state in sync with currently exposed scene providers.
-  inspectAdapterObject->Update(scene->GetInspectProviders());
-
   if (height() > 0)
   {
-    scene->SetCameraAspect(static_cast<float>(width()) / static_cast<float>(height()));
+    engine->SetViewportSize(width(), height());
   }
-
-  // hot reload shaders
-  scene->ReloadShadersIfChanged();
 
   // delta time
   const qint64 nowNs = elapsedTimer.nsecsElapsed();
@@ -183,12 +173,8 @@ void OpenGLViewportWidget::paintGL()
   const qint64 renderStartNs = elapsedTimer.nsecsElapsed();
 
   // update and render
-  scene->SetInputState(pendingInputState);
-  scene->Update(deltaSeconds);
-  const SceneSnapshot snapshot = scene->CreateSnapshot();
-  const RenderFrame frame = renderFrameBuilder.Build(snapshot, renderer.GetDescriptor(), extractionRegistry);
-  renderer.Draw(frame);
-  pendingInputState.ResetFrameTransientState();
+  engine->Update(deltaSeconds);
+  engine->Render();
 
   // Update render statistics
   const qint64 renderDurationNs = elapsedTimer.nsecsElapsed() - renderStartNs;
@@ -213,14 +199,14 @@ void OpenGLViewportWidget::paintGL()
 **************************************************/
 void OpenGLViewportWidget::keyPressEvent(QKeyEvent *event)
 {
-  pendingInputState.SetKeyDown(event->key(), true);
+  engine->OnKeyChanged(event->key(), true);
 
   event->accept();
 }
 
 void OpenGLViewportWidget::keyReleaseEvent(QKeyEvent *event)
 {
-  pendingInputState.SetKeyDown(event->key(), false);
+  engine->OnKeyChanged(event->key(), false);
 
   event->accept();
 }
@@ -237,65 +223,42 @@ void OpenGLViewportWidget::mousePressEvent(QMouseEvent *event)
   setFocus();
 
   // if Ctrl is pressed
-  if (pendingInputState.IsKeyDown(Qt::Key_Control) && 
-    event && 
-    event->button() == Qt::LeftButton && 
-    scene)
+  if (engine->IsKeyDown(Qt::Key_Control) &&
+    event &&
+    event->button() == Qt::LeftButton)
   {
-    if (std::shared_ptr<Camera> camera = scene->GetCamera())
-    {
-      const float viewportWidth = static_cast<float>(std::max(1, width()));
-      const float viewportHeight = static_cast<float>(std::max(1, height()));
-      const float mouseX = static_cast<float>(event->position().x());
-      const float mouseY = static_cast<float>(event->position().y());
+    const float viewportWidth = static_cast<float>(std::max(1, width()));
+    const float viewportHeight = static_cast<float>(std::max(1, height()));
+    const float mouseX = static_cast<float>(event->position().x());
+    const float mouseY = static_cast<float>(event->position().y());
 
-      const float ndcX = (2.0f * mouseX / viewportWidth) - 1.0f;
-      const float ndcY = 1.0f - (2.0f * mouseY / viewportHeight);
+    const float ndcX = (2.0f * mouseX / viewportWidth) - 1.0f;
+    const float ndcY = 1.0f - (2.0f * mouseY / viewportHeight);
 
-      const glm::mat4 viewMatrix = camera->GetViewMatrix();
-      const glm::mat4 projectionMatrix = camera->GetProjectionMatrix();
-      const glm::mat4 inverseViewProjection = glm::inverse(projectionMatrix * viewMatrix);
-
-      const glm::vec4 nearClip(ndcX, ndcY, -1.0f, 1.0f);
-      const glm::vec4 farClip(ndcX, ndcY, 1.0f, 1.0f);
-
-      glm::vec4 nearWorld = inverseViewProjection * nearClip;
-      glm::vec4 farWorld = inverseViewProjection * farClip;
-      if (std::abs(nearWorld.w) > 1e-6f)
-      {
-        nearWorld /= nearWorld.w;
-      }
-      if (std::abs(farWorld.w) > 1e-6f)
-      {
-        farWorld /= farWorld.w;
-      }
-
-      const glm::vec3 rayOrigin = camera->GetPosition();
-      const glm::vec3 rayDirection = glm::normalize(glm::vec3(farWorld - nearWorld));
-      inspectAdapterObject->selectObjectByRay(rayOrigin, rayDirection);
-    }
+    const Engine::Ray ray = engine->ScreenPointToRay(ndcX, ndcY);
+    inspectAdapterObject->selectObjectByRay(ray.origin, ray.direction);
   }
 
-  pendingInputState.SetMouseButtonDown(static_cast<int>(event->button()), true);
-  pendingInputState.SetMousePosition(glm::vec2(static_cast<float>(event->position().x()),
-                                               static_cast<float>(event->position().y())));
+  engine->OnMouseButtonChanged(static_cast<int>(event->button()), true);
+  engine->OnMousePositionChanged(glm::vec2(static_cast<float>(event->position().x()),
+                                           static_cast<float>(event->position().y())));
 
   event->accept();
 }
 
 void OpenGLViewportWidget::mouseReleaseEvent(QMouseEvent *event)
 {
-  pendingInputState.SetMouseButtonDown(static_cast<int>(event->button()), false);
-  pendingInputState.SetMousePosition(glm::vec2(static_cast<float>(event->position().x()),
-                                               static_cast<float>(event->position().y())));
+  engine->OnMouseButtonChanged(static_cast<int>(event->button()), false);
+  engine->OnMousePositionChanged(glm::vec2(static_cast<float>(event->position().x()),
+                                           static_cast<float>(event->position().y())));
 
   event->accept();
 }
 
 void OpenGLViewportWidget::mouseMoveEvent(QMouseEvent *event)
 {
-  pendingInputState.SetMousePosition(glm::vec2(static_cast<float>(event->position().x()),
-                                               static_cast<float>(event->position().y())));
+  engine->OnMousePositionChanged(glm::vec2(static_cast<float>(event->position().x()),
+                                           static_cast<float>(event->position().y())));
 
   event->accept();
 }
@@ -303,7 +266,7 @@ void OpenGLViewportWidget::mouseMoveEvent(QMouseEvent *event)
 void OpenGLViewportWidget::wheelEvent(QWheelEvent *event)
 {
   const QPoint angleDelta = event->angleDelta();
-  pendingInputState.AddScrollDelta(static_cast<float>(angleDelta.y()) / 120.0f);
+  engine->OnScroll(static_cast<float>(angleDelta.y()) / 120.0f);
 
   event->accept();
 }

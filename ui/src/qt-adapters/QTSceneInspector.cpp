@@ -138,48 +138,46 @@ QTSceneInspector::QTSceneInspector(QObject *parent)
   syncTimer.start();
 }
 
+/**
+ * @brief Attach the engine's inspection service and perform the initial provider sync.
+ *  Subscribes to push-based provider-list-changed notifications instead of per-frame polling.
+ *
+ * @param service
+ */
+void QTSceneInspector::SetInspectionService(IInspectionService *service)
+{
+  session.SetService(service);
+
+  if (service)
+  {
+    service->OnProvidersChanged([this]()
+                                 { HandleProvidersChanged(); });
+  }
+
+  HandleProvidersChanged();
+}
+
 std::string QTSceneInspector::selectedObjectName() const
 {
-  return selectedProviderName;
+  return session.SelectedId();
 }
 
 /**
- * @brief Set the selected object to be the one with the given name.
- *  If no object has the name, selection will be cleared.
+ * @brief Select the object with the given stable id. Clears selection if not found.
  *
- * @param name
+ * @param id
  */
-void QTSceneInspector::setSelectedObjectName(const std::string &name)
+void QTSceneInspector::setSelectedObjectName(const std::string &id)
 {
-  if (name == selectedProviderName)
+  if (id == session.SelectedId())
   {
     return;
   }
 
-  // Find the provider that has name matching the input name
-  bool found = false;
-  for (auto provider : providers)
-  {
-    if (provider && provider->GetInspectDisplayName() == name)
-    {
-      found = true;
-      selectedProviderName = name;
-      currentFields = AdaptFields(provider->GetInspectFields());
-      break;
-    }
-  }
-
-  if (!found)
-  {
-    // Clear selection if no provider has the input name
-    selectedProviderName = "";
-    currentFields.clear();
-  }
-
-  // Build the field objects for the newly selected provider
+  session.SelectById(id);
+  currentFields = AdaptFields(session.CurrentFields());
   RebuildFieldObjects();
 
-  // Change signal emit
   emit selectedProviderIndexChanged();
   emit fieldsChanged();
   ++revision;
@@ -197,117 +195,33 @@ int QTSceneInspector::fieldRevision() const
 }
 
 /**
- * @brief Update the list of inspectable providers coming from the scene.
- * 
- * @param newProviders 
+ * @brief React to the engine's push notification that the provider list structurally changed.
+ *  Re-validates the current selection and rebuilds the field list if needed.
  */
-void QTSceneInspector::Update(const std::vector<InspectProvider *> &newProviders)
+void QTSceneInspector::HandleProvidersChanged()
 {
-  bool sameProviders = newProviders.size() == providers.size();
-  if (sameProviders)
-  {
-    for (size_t i = 0; i < newProviders.size(); ++i)
-    {
-      if (newProviders[i] != providers[i])
-      {
-        sameProviders = false;
-        break;
-      }
-    }
-  }
-
-  if (!sameProviders)
-  {
-    SetProviders(newProviders);
-    return;
-  }
-
-  if (selectedProviderName.empty())
-  {
-    return;
-  }
-
-  InspectProvider *selectedProvider = FindProviderByName(selectedProviderName);
-  if (!selectedProvider)
-  {
-    selectedProviderName.clear();
-    currentFields.clear();
-    RebuildFieldObjects();
-    emit selectedProviderIndexChanged();
-    emit fieldsChanged();
-    ++revision;
-    emit fieldRevisionChanged();
-    return;
-  }
-
-  std::vector<std::shared_ptr<IInspectWidget>> refreshedFields = AdaptFields(selectedProvider->GetInspectFields());
-  bool changed = refreshedFields.size() != currentFields.size();
-  if (!changed)
-  {
-    for (size_t i = 0; i < refreshedFields.size(); ++i)
-    {
-      const std::shared_ptr<IInspectWidget> &refreshed = refreshedFields[i];
-      const std::shared_ptr<IInspectWidget> &existing = currentFields[i];
-      const QString refreshedId = refreshed ? refreshed->fieldId() : QString();
-      const QString existingId = existing ? existing->fieldId() : QString();
-      if (refreshedId != existingId)
-      {
-        changed = true;
-        break;
-      }
-    }
-  }
-
-  if (!changed)
-  {
-    return;
-  }
-
-  currentFields = std::move(refreshedFields);
-  RebuildFieldObjects();
-  emit fieldsChanged();
-  ++revision;
-  emit fieldRevisionChanged();
-}
-
-/**
- * @brief Set the list of inspectable providers coming from the scene, replacing the existing list. 
- *  This is used when the provider list has changed (e.g. from scene updates).
- * 
- * @param newProviders 
- */
-void QTSceneInspector::SetProviders(const std::vector<InspectProvider *> &newProviders)
-{
-  const std::string previousSelection = selectedProviderName;
-  providers = newProviders;
+  const std::string previousSelection = session.SelectedId();
 
   emit providersChanged();
 
-  if (providers.empty())
+  const bool stillValid = !previousSelection.empty() && session.SelectById(previousSelection);
+  if (!stillValid)
   {
-    selectedProviderName.clear();
-    currentFields.clear();
-  }
-  else
-  {
-    InspectProvider *selectedProvider = nullptr;
-    if (!selectedProviderName.empty())
+    const std::vector<InspectObjectSummary> summaries = getProviders();
+    if (!summaries.empty())
     {
-      selectedProvider = FindProviderByName(selectedProviderName);
+      session.SelectById(summaries.front().id);
     }
-
-    if (!selectedProvider)
+    else
     {
-      selectedProvider = providers.front();
-      selectedProviderName = selectedProvider ? selectedProvider->GetInspectDisplayName() : std::string();
+      session.ClearSelection();
     }
-
-    currentFields = selectedProvider ? AdaptFields(selectedProvider->GetInspectFields()) : std::vector<std::shared_ptr<IInspectWidget>>{};
   }
 
+  currentFields = AdaptFields(session.CurrentFields());
   RebuildFieldObjects();
 
-  if (previousSelection != selectedProviderName)
+  if (previousSelection != session.SelectedId())
   {
     emit selectedProviderIndexChanged();
   }
@@ -316,6 +230,11 @@ void QTSceneInspector::SetProviders(const std::vector<InspectProvider *> &newPro
   ++revision;
   emit fieldRevisionChanged();
   emit visibilityStateChanged();
+}
+
+std::vector<InspectObjectSummary> QTSceneInspector::getProviders() const
+{
+  return session.ProviderSummaries();
 }
 
 QVariantMap QTSceneInspector::fieldMeta(const QString &fieldId) const
@@ -357,120 +276,55 @@ bool QTSceneInspector::setFieldValue(const QString &fieldId, const QVariant &val
   return true;
 }
 
-bool QTSceneInspector::hasVisibility(const std::string &providerName) const
+bool QTSceneInspector::hasVisibility(const std::string &providerId) const
 {
-  InspectProvider *provider = FindProviderByName(providerName);
-  if (!provider)
-  {
-    return false;
-  }
-
-  return provider->HasVisibility();
+  return session.SupportsVisibility(providerId);
 }
 
-bool QTSceneInspector::isVisible(const std::string &providerName) const
+bool QTSceneInspector::isVisible(const std::string &providerId) const
 {
-  InspectProvider *provider = FindProviderByName(providerName);
-  if (!provider)
-  {
-    return false;
-  }
-
-  return provider->IsVisible();
+  return session.IsVisible(providerId);
 }
 
-bool QTSceneInspector::setVisible(const std::string &providerName, bool visible)
+bool QTSceneInspector::setVisible(const std::string &providerId, bool visible)
 {
-  InspectProvider *provider = FindProviderByName(providerName);
-  if (!provider)
+  if (!session.SetVisible(providerId, visible))
   {
     return false;
   }
 
-  if (!provider->HasVisibility())
-  {
-    return false;
-  }
-
-  const std::vector<std::shared_ptr<IInspectWidget>> providerFields = AdaptFields(provider->GetInspectFields());
-  const std::shared_ptr<IInspectWidget> visibilityField = FindVisibilityField(providerFields);
-  if (!visibilityField)
-  {
-    return false;
-  }
-
-  visibilityField->SetValue(visible);
-
-  if (selectedProviderName == providerName)
-  {
-    const std::shared_ptr<IInspectWidget> selectedField = FindField(visibilityField->fieldId());
-    if (selectedField)
-    {
-      selectedField->SetValue(visible);
-      fieldSnapshots[selectedField->fieldId()] = selectedField->GetValue();
-    }
-  }
-
-  ++revision;
   emit fieldRevisionChanged();
   emit visibilityStateChanged();
   return true;
 }
 
 /**
- * @brief Select an object in the scene by casting a ray from the given origin in the given direction. 
- *        The closest intersecting object will be selected. Objects are intersected based on their CastRay implementation, 
- *          which typically uses bounding volumes for hit testing.
- * 
- * @param rayOrigin 
- * @param rayDirection 
- * @return true 
- * @return false 
+ * @brief Select an object in the scene by casting a ray from the given origin in the given direction.
+ *        The closest intersecting object will be selected, via the engine's inspection service.
+ *
+ * @param rayOrigin
+ * @param rayDirection
+ * @return true
+ * @return false
  */
 bool QTSceneInspector::selectObjectByRay(const glm::vec3 &rayOrigin, const glm::vec3 &rayDirection)
 {
-  const float directionLength = glm::length(rayDirection);
-  if (directionLength <= 1e-6f)
+  const std::string previousSelection = session.SelectedId();
+  if (!session.SelectByRay(rayOrigin, rayDirection))
   {
     return false;
   }
 
-  const glm::vec3 normalizedDirection = rayDirection / directionLength;
-  float closestDistance = std::numeric_limits<float>::max();
-  std::string closestProviderName;
+  currentFields = AdaptFields(session.CurrentFields());
+  RebuildFieldObjects();
 
-  for (InspectProvider *provider : providers)
+  if (session.SelectedId() != previousSelection)
   {
-    if (!provider)
-    {
-      continue;
-    }
-
-    const std::optional<float> hitDistance = provider->CastRay(rayOrigin, normalizedDirection);
-    if (!hitDistance.has_value())
-    {
-      continue;
-    }
-
-    const float distance = hitDistance.value();
-    if (distance < 0.0f)
-    {
-      continue;
-    }
-
-    if (distance < closestDistance)
-    {
-      closestDistance = distance;
-      closestProviderName = provider->GetInspectDisplayName();
-    }
+    emit selectedProviderIndexChanged();
   }
-
-  if (closestProviderName.empty())
-  {
-    return false;
-  }
-
-  setSelectedObjectName(closestProviderName);
+  emit fieldsChanged();
+  ++revision;
+  emit fieldRevisionChanged();
   return true;
 }
 
@@ -532,32 +386,3 @@ std::shared_ptr<IInspectWidget> QTSceneInspector::FindField(const QString &field
   return nullptr;
 }
 
-InspectProvider *QTSceneInspector::FindProviderByName(const std::string &name) const
-{
-  for (InspectProvider *provider : providers)
-  {
-    if (provider && provider->GetInspectDisplayName() == name)
-    {
-      return provider;
-    }
-  }
-  return nullptr;
-}
-
-std::shared_ptr<IInspectWidget> QTSceneInspector::FindVisibilityField(const std::vector<std::shared_ptr<IInspectWidget>> &fields) const
-{
-  for (const std::shared_ptr<IInspectWidget> &field : fields)
-  {
-    if (!field)
-    {
-      continue;
-    }
-
-    const QString id = field->fieldId();
-    if (id == "visible" || id == "isVisible")
-    {
-      return field;
-    }
-  }
-  return nullptr;
-}

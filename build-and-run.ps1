@@ -10,6 +10,10 @@ $ErrorActionPreference = "Stop"
 $Settings = Get-Content (Join-Path $PSScriptRoot "settings.json") -Raw | ConvertFrom-Json
 $Config = if ($Config) { $Config } else { $Settings.project.defaultConfiguration }
 
+if ($Settings.qt.bypassQtLicenseCheck) {
+    $env:QT_BYPASS_LICENSE_CHECK = "1"
+}
+
 Write-Host "=== Building and Running ===" -ForegroundColor Cyan
 
 .\build.ps1 $Config

@@ -26,10 +26,8 @@ namespace
  */
 Scene::Scene()
   : camera(std::make_shared<PerspectiveCamera>(45.0f, 800.0f / 600.0f, 0.1f, 100.0f))
+  , selfInspectProvider(static_cast<InspectProvider*>(this), [](InspectProvider*) {}) // non-owning alias; Scene owns itself
 {
-  AddInspectProvider(this);
-  AddInspectProvider(camera);
-
   // ------------- SHADERS (PBR) -------------
   std::shared_ptr<Shader> defaultShader = std::make_shared<Shader>(
     "default",
@@ -60,12 +58,6 @@ Scene::Scene()
     donutMaterial,
     "sphere2");
   sphere2->SetPosition(glm::vec3(0.5f, 0.0f, 0.0f));
-
-  sphere2->SetUpdate([sphere2](float deltaTime)
-  {
-    glm::vec3 pos = sphere2->GetPosition();
-    sphere2->SetPosition(glm::vec3(0.5f, std::sin(pos.y) * 0.5 + 0.5f, 0.0f));
-  });
 
   auto floor = std::make_shared<GameObject>(
     std::make_shared<QuadGeometry>(),
@@ -414,20 +406,33 @@ SceneSnapshot Scene::CreateSnapshot() const
  */
 void Scene::RebuildInspectProviders()
 {
-  inspectProviders.clear();
-  AddInspectProvider(this);
-  AddInspectProvider(camera);
+  inspectProviderEntries.clear();
+  ++providerGeneration;
 
+  auto addProvider = [this](const std::shared_ptr<InspectProvider>& provider, const std::string& idPrefix, int index)
+  {
+    if (!provider)
+    {
+      return;
+    }
+    inspectProviderEntries.push_back({provider, idPrefix + "#" + std::to_string(index)});
+  };
+
+  addProvider(selfInspectProvider, "scene", 0);
+  addProvider(std::dynamic_pointer_cast<InspectProvider>(camera), "camera", 0);
+
+  int lightIndex = 0;
   for (const auto &light : lights)
   {
-    AddInspectProvider(light);
+    addProvider(std::dynamic_pointer_cast<InspectProvider>(light), "light", lightIndex++);
   }
 
+  int drawableIndex = 0;
   for (const auto& drawable : drawables)
   {
     if (auto provider = std::dynamic_pointer_cast<InspectProvider>(drawable))
     {
-      AddInspectProvider(provider);
+      addProvider(provider, "drawable", drawableIndex++);
     }
   }
 }

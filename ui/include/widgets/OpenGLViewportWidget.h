@@ -8,15 +8,10 @@
 #include <QOpenGLWidget>
 #include <QTimer>
 
-#include "Input/InputState.h"
+#include "Engine.h"
 #include "state/RenderStatistics.h"
-#include "Renderer/ForwardRenderer.h"
-#include "RenderCore/ExtractionRegistry.h"
-#include "RenderCore/RenderFrameBuilder.h"
 
-class Scene;
 class QTSceneInspector;
-class BaseMovement;
 
 /**
  * @brief Base class for OpenGL-based scene rendering viewports.
@@ -37,6 +32,7 @@ public:
 
   RenderStatistics *renderStatistics() const;
   QTSceneInspector &inspectAdapter() const;
+  void SetFillColor(const glm::vec3& color);
 
 signals:
   void renderStatisticsChanged();
@@ -60,17 +56,13 @@ protected:
   void initializeScene();
 
   // Scene management
-  std::unique_ptr<Scene> scene;
-  BaseMovement *movement = nullptr;
+  std::unique_ptr<Engine> engine;
 
 private:
-  InputState pendingInputState; // Accumulates input events between frames
   std::unique_ptr<RenderStatistics> renderStatisticsObject; // Owned by this widget; exposes rendering metrics for external display
   std::unique_ptr<QTSceneInspector> inspectAdapterObject; // Owned by this widget; exposes the scene's inspectable objects to Qt widgets
-  ForwardRenderer renderer;
-  ExtractionRegistry extractionRegistry;
-  RenderFrameBuilder renderFrameBuilder;
   QTimer frameTimer;
   QElapsedTimer elapsedTimer;
   qint64 lastFrameTimeNs = 0;
+  glm::vec3 fillColor{0.0f};
 };

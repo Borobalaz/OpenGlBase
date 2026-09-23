@@ -34,36 +34,35 @@ InspectProviderWidget::InspectProviderWidget(QWidget *parent)
 
   QObject::connect(visibilityButton, &QToolButton::clicked, this, [this]()
                    {
-                     if (!provider)
+                     if (object.id.empty())
                      {
                        return;
                      }
-                     emit visibilityClicked(provider->GetInspectDisplayName());
+                     emit visibilityClicked(object.id);
                    });
 
   updateSelectionStyle();
 }
 
-void InspectProviderWidget::setProvider(InspectProvider *newProvider)
+void InspectProviderWidget::setObject(const InspectObjectSummary &newObject)
 {
-  provider = newProvider;
-  refreshFromProvider();
+  object = newObject;
+  refreshFromObject();
 }
 
-void InspectProviderWidget::refreshFromProvider()
+void InspectProviderWidget::refreshFromObject()
 {
-  if (!provider)
+  if (object.id.empty())
   {
     nameLabel->clear();
     visibilityButton->setVisible(false);
     return;
   }
 
-  nameLabel->setText(QString::fromStdString(provider->GetInspectDisplayName()));
+  nameLabel->setText(QString::fromStdString(object.displayName));
 
-  const bool hasVisibility = provider->HasVisibility();
-  visibilityButton->setVisible(hasVisibility);
-  if (hasVisibility)
+  visibilityButton->setVisible(object.hasVisibility);
+  if (object.hasVisibility)
   {
     updateVisibilityIcon();
   }
@@ -87,9 +86,9 @@ void InspectProviderWidget::setSelected(bool isSelected)
  */
 void InspectProviderWidget::mousePressEvent(QMouseEvent *event)
 {
-  if (event && event->button() == Qt::LeftButton && provider)
+  if (event && event->button() == Qt::LeftButton && !object.id.empty())
   {
-    emit clicked(provider->GetInspectDisplayName());
+    emit clicked(object.id);
   }
 
   QFrame::mousePressEvent(event);
@@ -109,7 +108,7 @@ void InspectProviderWidget::updateSelectionStyle()
 
 void InspectProviderWidget::updateVisibilityIcon()
 {
-  if (!provider || !visibilityButton)
+  if (object.id.empty() || !visibilityButton)
   {
     return;
   }
@@ -118,7 +117,7 @@ void InspectProviderWidget::updateVisibilityIcon()
   const QIcon themeHidden = QIcon::fromTheme("view-hidden");
   const QIcon fallbackVisible = style()->standardIcon(QStyle::SP_DialogYesButton);
   const QIcon fallbackHidden = style()->standardIcon(QStyle::SP_DialogNoButton);
-  const bool isVisible = provider->IsVisible();
+  const bool isVisible = object.isVisible;
 
   if (isVisible)
   {

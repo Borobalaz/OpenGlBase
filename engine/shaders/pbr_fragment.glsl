@@ -134,6 +134,7 @@ struct LightUniforms {
   vec3 ambient;
   vec3 diffuse;
   vec3 specular;
+  float intensity;
   float constant;
   float linear;
   float quadratic;
@@ -200,9 +201,9 @@ vec3 ComputeLightRadiance(LightUniforms light,
     lightDir = normalize(-light.direction);
   }
 
-  vec3 lightRadiance = light.diffuse * attenuation;
+  vec3 lightRadiance = light.diffuse * attenuation * light.intensity;
   vec3 radiance = CookTorranceBRDF(normal, viewDir, lightDir, materialData, lightRadiance);
-  radiance += light.ambient * materialData.baseColor * 0.1;
+  radiance += light.ambient * materialData.baseColor * 0.1 * light.intensity;
 
   return radiance;
 }

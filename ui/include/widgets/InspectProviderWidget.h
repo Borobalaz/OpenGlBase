@@ -1,7 +1,7 @@
 #pragma once
 
 #include <QFrame>
-#include "widgets/inspect_fields/InspectProvider.h"
+#include "qt-adapters/InspectObjectSummary.h"
 
 class QLabel;
 class QToolButton;
@@ -13,14 +13,14 @@ class InspectProviderWidget : public QFrame
 public:
   explicit InspectProviderWidget(QWidget *parent = nullptr);
 
-  void setProvider(InspectProvider *provider);
-  void refreshFromProvider();
+  void setObject(const InspectObjectSummary &newObject);
+  void refreshFromObject();
   void setSelected(bool selected);
-  std::string getName() const { return provider ? provider->GetInspectDisplayName() : ""; }
+  std::string getName() const { return object.id; }
 
 signals:
-  void clicked(std::string providerName);
-  void visibilityClicked(std::string providerName);
+  void clicked(std::string providerId);
+  void visibilityClicked(std::string providerId);
 
 protected:
   void mousePressEvent(QMouseEvent *event) override;
@@ -31,7 +31,7 @@ private:
 
   bool selected = false;
 
-  InspectProvider *provider = nullptr;
+  InspectObjectSummary object;
   QLabel *nameLabel = nullptr;
   QToolButton *visibilityButton = nullptr;
 };

@@ -41,16 +41,16 @@ SceneObjectListWidget::SceneObjectListWidget(QWidget *parent)
 /**
  * @brief Set the list of scene objects to display in the widget, along with their visibility states.
  * 
- * @param providers 
+ * @param objects 
  */
-void SceneObjectListWidget::setObjects(std::vector<InspectProvider*> providers)
+void SceneObjectListWidget::setObjects(std::vector<InspectObjectSummary> objects)
 {
   clearRows();
 
-  for(auto provider : providers)
+  for (const InspectObjectSummary &object : objects)
   {
     auto *itemWidget = new InspectProviderWidget(listContainer);
-    itemWidget->setProvider(provider);
+    itemWidget->setObject(object);
 
     QObject::connect(itemWidget, &InspectProviderWidget::clicked, this, [this](std::string providerName)
     {

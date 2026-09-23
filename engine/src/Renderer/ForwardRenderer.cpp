@@ -25,7 +25,13 @@ const RendererDescriptor& ForwardRenderer::GetDescriptor() const
 void ForwardRenderer::Draw(const RenderFrame& frame)
 {
   RenderExecutionContext executionContext(GetDescriptor());
+  glClearColor(fillColor.r, fillColor.g, fillColor.b, 1.0f);
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
   ExecuteAdditionalPasses(frame, executionContext);
+}
+
+void ForwardRenderer::SetFillColor(const glm::vec3& color)
+{
+  fillColor = color;
 }

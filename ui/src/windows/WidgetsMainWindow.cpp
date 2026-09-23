@@ -94,6 +94,8 @@ void WidgetsMainWindow::setupLayout()
 
 void WidgetsMainWindow::applyTheme()
 {
+  viewportWidget->SetFillColor(useDarkTheme ? glm::vec3(0.0f) : glm::vec3(1.0f));
+
   if (useDarkTheme)
   {
     const DarkThemeStyle darkThemeStyle;

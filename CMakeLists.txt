@@ -40,6 +40,10 @@ set_target_properties(engine PROPERTIES WINDOWS_EXPORT_ALL_SYMBOLS ON)
 
 target_include_directories(engine PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/engine/include
+)
+
+target_include_directories(engine PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/engine/src/include
     ${STB_INCLUDE_DIR}
 )
 
@@ -66,7 +70,6 @@ add_executable(app_qt
 )
 
 target_include_directories(app_qt PRIVATE
-    ${CMAKE_CURRENT_SOURCE_DIR}/engine/include
     ${CMAKE_CURRENT_SOURCE_DIR}/ui/include
 )
 

@@ -32,6 +32,7 @@ void DirectionalLight::Apply(Shader& shader) const
   shader.SetVec3(prefix + ".ambient", ambient);
   shader.SetVec3(prefix + ".diffuse", diffuse);
   shader.SetVec3(prefix + ".specular", specular);
+  shader.SetFloat(prefix + ".intensity", intensity);
   shader.SetVec3(prefix + ".position", glm::vec3(0.0f));
   shader.SetVec3(prefix + ".direction", direction);
   shader.SetFloat(prefix + ".constant", 1.0f);

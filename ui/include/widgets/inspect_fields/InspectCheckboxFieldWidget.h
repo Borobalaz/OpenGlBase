@@ -14,54 +14,16 @@
 class InspectCheckboxFieldWidget : public QCheckBox, public IInspectWidget
 {
 public:
-  explicit InspectCheckboxFieldWidget(QWidget *parent = nullptr)
-    : QCheckBox(parent)
-  {
-    setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Preferred);
-    QObject::connect(this, &QCheckBox::toggled, this, [this](bool checked)
-    {
-      if (valueChangedCallback)
-      {
-        valueChangedCallback(checked);
-      }
-    });
-  }
-
-  InspectCheckboxFieldWidget(QString fieldId,
-                             QString displayName,
-                             QString groupName,
-                             bool readOnly = false,
-                             QWidget *parent = nullptr)
-    : InspectCheckboxFieldWidget(parent)
-  {
-    fieldIdValue = std::move(fieldId);
-    displayNameValue = std::move(displayName);
-    groupNameValue = std::move(groupName);
-    readOnlyValue = readOnly;
-    setEnabled(!readOnlyValue);
-  }
-
-  IInspectWidget *addToLayout(QHBoxLayout *layout) override
-  {
-    layout->addWidget(this, 1);
-    return this;
-  }
-
-  QString fieldId() const override { return fieldIdValue; }
-  QString displayName() const override { return displayNameValue; }
-  QString groupName() const override { return groupNameValue; }
-  bool isReadOnly() const override { return readOnlyValue; }
-
-  void SetValue(const QVariant &value) override
-  {
-    const QSignalBlocker blocker(this);
-    setChecked(value.toBool());
-  }
-
-  QVariant GetValue() const override
-  {
-    return isChecked();
-  }
+  explicit InspectCheckboxFieldWidget(QWidget *parent = nullptr);
+  InspectCheckboxFieldWidget(QString fieldId, QString displayName, QString groupName,
+                             bool readOnly = false, QWidget *parent = nullptr);
+  IInspectWidget *addToLayout(QHBoxLayout *layout) override;
+  QString fieldId() const override;
+  QString displayName() const override;
+  QString groupName() const override;
+  bool isReadOnly() const override;
+  void SetValue(const QVariant &value) override;
+  QVariant GetValue() const override;
 
   std::function<void(const QVariant &)> valueChangedCallback;
 

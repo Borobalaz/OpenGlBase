@@ -33,6 +33,7 @@ file(GLOB_RECURSE UI_SOURCES CONFIGURE_DEPENDS
     "${CMAKE_CURRENT_SOURCE_DIR}/ui/src/controllers/*.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/ui/src/qt-adapters/*.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/ui/src/styles/*.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/ui/src/state/*.cpp"
 )
 
 add_library(engine SHARED ${ENGINE_SOURCES})

@@ -14,54 +14,16 @@
 class InspectTextFieldWidget : public QLineEdit, public IInspectWidget
 {
 public:
-  explicit InspectTextFieldWidget(QWidget *parent = nullptr)
-    : QLineEdit(parent)
-  {
-    setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Preferred);
-    QObject::connect(this, &QLineEdit::editingFinished, this, [this]()
-    {
-      if (valueChangedCallback)
-      {
-        valueChangedCallback(text());
-      }
-    });
-  }
-
-  InspectTextFieldWidget(QString fieldId,
-                         QString displayName,
-                         QString groupName,
-                         bool readOnly = false,
-                         QWidget *parent = nullptr)
-    : InspectTextFieldWidget(parent)
-  {
-    fieldIdValue = std::move(fieldId);
-    displayNameValue = std::move(displayName);
-    groupNameValue = std::move(groupName);
-    readOnlyValue = readOnly;
-    setEnabled(!readOnlyValue);
-  }
-
-  IInspectWidget *addToLayout(QHBoxLayout *layout) override
-  {
-    layout->addWidget(this, 1);
-    return this;
-  }
-
-  QString fieldId() const override { return fieldIdValue; }
-  QString displayName() const override { return displayNameValue; }
-  QString groupName() const override { return groupNameValue; }
-  bool isReadOnly() const override { return readOnlyValue; }
-
-  void SetValue(const QVariant &value) override
-  {
-    const QSignalBlocker blocker(this);
-    setText(value.toString());
-  }
-
-  QVariant GetValue() const override
-  {
-    return text();
-  }
+  explicit InspectTextFieldWidget(QWidget *parent = nullptr);
+  InspectTextFieldWidget(QString fieldId, QString displayName, QString groupName,
+                         bool readOnly = false, QWidget *parent = nullptr);
+  IInspectWidget *addToLayout(QHBoxLayout *layout) override;
+  QString fieldId() const override;
+  QString displayName() const override;
+  QString groupName() const override;
+  bool isReadOnly() const override;
+  void SetValue(const QVariant &value) override;
+  QVariant GetValue() const override;
 
   std::function<void(const QVariant &)> valueChangedCallback;
 

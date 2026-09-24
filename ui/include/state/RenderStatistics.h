@@ -14,80 +14,15 @@ class RenderStatistics : public QObject
   Q_PROPERTY(double averageRenderTime READ averageRenderTime NOTIFY statisticsChanged)
 
 public:
-  explicit RenderStatistics(QObject *parent = nullptr)
-    : QObject(parent)
-  {
-  }
+  explicit RenderStatistics(QObject *parent = nullptr);
 
-  double fps() const { return fpsValue; }
-  double averageFps() const { return averageFpsValue; }
-  double renderTime() const { return renderTimeValue; }
-  double averageRenderTime() const { return averageRenderTimeValue; }
+  double fps() const;
+  double averageFps() const;
+  double renderTime() const;
+  double averageRenderTime() const;
 
-  void reset()
-  {
-    const bool changed = fpsValue != 0.0 ||
-                         averageFpsValue != 0.0 ||
-                         renderTimeValue != 0.0 ||
-                         averageRenderTimeValue != 0.0 ||
-                         !frameTimesNs.empty() ||
-                         !renderTimeWindowMs.empty() ||
-                         renderTimeWindowSumMs != 0.0;
-
-    frameTimesNs.clear();
-    renderTimeWindowMs.clear();
-    renderTimeWindowSumMs = 0.0;
-    fpsValue = 0.0;
-    averageFpsValue = 0.0;
-    renderTimeValue = 0.0;
-    averageRenderTimeValue = 0.0;
-
-    if (changed)
-    {
-      emit statisticsChanged();
-    }
-  }
-
-  void recordFrame(double fps, double renderTimeMs, qint64 frameEndNs)
-  {
-    fpsValue = fps;
-    renderTimeValue = renderTimeMs;
-
-    frameTimesNs.push_back(frameEndNs);
-    renderTimeWindowMs.push_back(renderTimeMs);
-    renderTimeWindowSumMs += renderTimeMs;
-
-    const qint64 windowStartNs = frameEndNs - 1000000000LL;
-    while (!frameTimesNs.empty() && frameTimesNs.front() < windowStartNs)
-    {
-      renderTimeWindowSumMs -= renderTimeWindowMs.front();
-      renderTimeWindowMs.pop_front();
-      frameTimesNs.pop_front();
-    }
-
-    if (frameTimesNs.size() >= 2)
-    {
-      const double windowSeconds = static_cast<double>(frameTimesNs.back() - frameTimesNs.front()) / 1e9;
-      averageFpsValue = windowSeconds > 1e-6
-        ? static_cast<double>(frameTimesNs.size() - 1) / windowSeconds
-        : fps;
-    }
-    else
-    {
-      averageFpsValue = fps;
-    }
-
-    if (!renderTimeWindowMs.empty())
-    {
-      averageRenderTimeValue = renderTimeWindowSumMs / static_cast<double>(renderTimeWindowMs.size());
-    }
-    else
-    {
-      averageRenderTimeValue = renderTimeMs;
-    }
-
-    emit statisticsChanged();
-  }
+  void reset();
+  void recordFrame(double fps, double renderTimeMs, qint64 frameEndNs);
 
 signals:
   void statisticsChanged();

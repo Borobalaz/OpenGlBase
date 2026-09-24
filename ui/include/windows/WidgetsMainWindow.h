@@ -10,6 +10,7 @@ class OpenGLViewportWidget;
 class InspectorWidget;
 class RenderStatisticsWidget;
 class SceneObjectListWidget;
+class MainToolBar;
 
 class WidgetsMainWindow : public QMainWindow
 {
@@ -20,6 +21,7 @@ public:
 
 private:
   void setupLayout();
+  void setupToolBar();
   void wireAdapterSignals();
   void applyTheme();
   void toggleTheme();
@@ -36,4 +38,6 @@ private:
   RenderStatisticsWidget *renderStatisticsWidget = nullptr;
 
   SceneObjectListWidget *sceneObjectListWidget = nullptr;
+
+  MainToolBar *toolBar = nullptr;
 };

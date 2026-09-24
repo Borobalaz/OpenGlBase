@@ -16,6 +16,7 @@
 #include "styles/LightThemeStyle.h"
 #include "widgets/OpenGLViewportWidget.h"
 #include "widgets/InspectorWidget.h"
+#include "widgets/MainToolBar.h"
 #include "widgets/RenderStatisticsWidget.h"
 #include "widgets/SceneObjectListWidget.h"
 
@@ -36,6 +37,9 @@ WidgetsMainWindow::WidgetsMainWindow(QWidget *parent)
 
   // Build the main window layout
   setupLayout();
+
+  // Build the toolbar
+  setupToolBar();
 
   // Wire signals between the QTSceneInspector, the scene object list 
   //  and inspector widgets, to synchronize state between them
@@ -97,6 +101,21 @@ void WidgetsMainWindow::setupLayout()
   rootLayout->setColumnStretch(2, 0);
 
   setCentralWidget(root);
+}
+
+void WidgetsMainWindow::setupToolBar()
+{
+  toolBar = new MainToolBar(this);
+
+  QObject::connect(toolBar, &MainToolBar::toggleThemeRequested, this, [this]()
+  {
+    toggleTheme();
+  });
+  QObject::connect(toolBar, &MainToolBar::objectListVisibilityToggled, sceneObjectListWidget, &QWidget::setVisible);
+  QObject::connect(toolBar, &MainToolBar::statsVisibilityToggled, renderStatisticsWidget, &QWidget::setVisible);
+  QObject::connect(toolBar, &MainToolBar::inspectorVisibilityToggled, inspectorWidget, &QWidget::setVisible);
+
+  addToolBar(Qt::TopToolBarArea, toolBar);
 }
 
 void WidgetsMainWindow::applyTheme()

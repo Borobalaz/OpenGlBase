@@ -2,7 +2,13 @@
 
 #include <QFrame>
 #include <QGridLayout>
+#include <QIcon>
 #include <QVBoxLayout>
+
+#if defined(Q_OS_WIN)
+#include <dwmapi.h>
+#include <windows.h>
+#endif
 
 #include "qt-adapters/QTSceneInspector.h"
 #include "controllers/MainWindowShortcuts.h"
@@ -38,9 +44,10 @@ WidgetsMainWindow::WidgetsMainWindow(QWidget *parent)
   // Apply the initial theme
   applyTheme();
 
-  // Set initial window size and title
+  // Set initial window size, title and icon
   resize(1600, 900);
-  setWindowTitle("DTI Visualizer (Widgets)");
+  setWindowTitle("3D Engine");
+  setWindowIcon(QIcon(":/icons/app-icon.svg"));
 }
 
 /**
@@ -100,11 +107,34 @@ void WidgetsMainWindow::applyTheme()
   {
     const DarkThemeStyle darkThemeStyle;
     setStyleSheet(darkThemeStyle.styleSheet());
-    return;
+  }
+  else
+  {
+    const LightThemeStyle lightThemeStyle;
+    setStyleSheet(lightThemeStyle.styleSheet());
   }
 
-  const LightThemeStyle lightThemeStyle;
-  setStyleSheet(lightThemeStyle.styleSheet());
+  applyTitleBarTheme();
+}
+
+void WidgetsMainWindow::applyTitleBarTheme()
+{
+#if defined(Q_OS_WIN)
+  // Color the native titlebar to match the theme (Windows 11 22H2+, DWMWA_CAPTION_COLOR/DWMWA_TEXT_COLOR).
+  constexpr DWORD DwmwaUseImmersiveDarkMode = 20;
+  constexpr DWORD DwmwaCaptionColor = 35;
+  constexpr DWORD DwmwaTextColor = 36;
+
+  const HWND hwnd = reinterpret_cast<HWND>(winId());
+
+  const BOOL useDarkMode = useDarkTheme ? TRUE : FALSE;
+  DwmSetWindowAttribute(hwnd, DwmwaUseImmersiveDarkMode, &useDarkMode, sizeof(useDarkMode));
+
+  const COLORREF captionColor = useDarkTheme ? RGB(0x1b, 0x26, 0x35) : RGB(0xee, 0xf3, 0xf8);
+  const COLORREF textColor = useDarkTheme ? RGB(0xd8, 0xe1, 0xea) : RGB(0x2a, 0x3b, 0x4f);
+  DwmSetWindowAttribute(hwnd, DwmwaCaptionColor, &captionColor, sizeof(captionColor));
+  DwmSetWindowAttribute(hwnd, DwmwaTextColor, &textColor, sizeof(textColor));
+#endif
 }
 
 void WidgetsMainWindow::toggleTheme()

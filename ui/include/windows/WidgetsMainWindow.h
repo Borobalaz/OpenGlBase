@@ -23,6 +23,7 @@ private:
   void wireAdapterSignals();
   void applyTheme();
   void toggleTheme();
+  void applyTitleBarTheme();
 
   void refreshObjectList();
   void syncObjectSelection();

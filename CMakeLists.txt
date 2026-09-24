@@ -16,7 +16,7 @@ find_package(OpenGL REQUIRED)
 find_package(glm CONFIG REQUIRED)
 find_package(glad CONFIG REQUIRED)
 find_package(assimp CONFIG REQUIRED)
-find_package(Qt6 REQUIRED COMPONENTS Core Gui OpenGL OpenGLWidgets Widgets)
+find_package(Qt6 REQUIRED COMPONENTS Core Gui OpenGL OpenGLWidgets Widgets Svg)
 
 find_path(STB_INCLUDE_DIR
     NAMES stb_image.h
@@ -57,6 +57,7 @@ target_link_libraries(engine PUBLIC
 
 add_executable(app_qt
     ${UI_SOURCES}
+    ${CMAKE_CURRENT_SOURCE_DIR}/ui/resources.qrc
     ${CMAKE_CURRENT_SOURCE_DIR}/ui/src/app/main.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ui/include/controllers/MainWindowShortcuts.h
     ${CMAKE_CURRENT_SOURCE_DIR}/ui/include/widgets/OpenGLViewportWidget.h
@@ -81,7 +82,12 @@ target_link_libraries(app_qt PRIVATE
     Qt6::OpenGL
     Qt6::OpenGLWidgets
     Qt6::Widgets
+    Qt6::Svg
 )
+
+if (WIN32)
+    target_link_libraries(app_qt PRIVATE dwmapi)
+endif()
 
 if (ITK_FOUND)
     target_link_libraries(app_qt PRIVATE ${ITK_LIBRARIES})
